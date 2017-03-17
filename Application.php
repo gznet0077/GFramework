@@ -1,0 +1,443 @@
+<?php
+
+namespace G;
+
+use G\Error\Php;
+use G\Exception\MethodNotAllowerd;
+use G\Exception\NotFound;
+use G\Middleware\IpAddress;
+use G\Middleware\BodyParser;
+use G\Middleware\OverrideMethod;
+use G\Middleware\Powered;
+use G\Util\Misc;
+use G\Util\Sanitize;
+use Swoole\Http\Server;
+use Swoole\Http\Request;
+use Swoole\Http\Response;
+use Swoole\Process;
+
+class Application implements IMiddleware
+{
+    const MOD_WEB = 1 << 0;
+    const MOD_CRON = 1 << 1;
+
+    /**
+     * @var Server
+     */
+    protected $server;
+
+    /**
+     * @var \ArrayObject
+     */
+    protected $settings;
+
+    /**
+     * @var \ArrayObject
+     */
+    protected $serverConfig;
+
+    /**
+     * @var Router
+     */
+    protected $router;
+
+    private $_error;
+
+    private $_success;
+
+    private $_tasks = [];
+
+    private $_crontab = [];
+
+    private $mod = self::MOD_WEB;
+
+    use TMiddleware;
+
+    public function __construct(array $config = [], $serverConfig = [], $mod = self::MOD_WEB)
+    {
+        $this->settings = new \ArrayObject($config);
+        $this->serverConfig = new \ArrayObject($serverConfig);
+
+        $this->mod = $mod;
+        if ($this->mod & self::MOD_WEB) {
+            $this->router = new Router();
+        }
+    }
+
+    public function setError($error)
+    {
+        $this->_error = $error;
+    }
+
+    public function setSuccess($success)
+    {
+        $this->_success = $success;
+    }
+
+    /**
+     * @return Server
+     */
+    public function getServer()
+    {
+        return $this->server;
+    }
+
+    public function onStart($handler)
+    {
+        if (!is_callable($handler)) {
+            throw new \RuntimeException('onStart handler 不可运行');
+        }
+
+        $this->settings['onStart'] = $handler;
+    }
+
+    public function onWorkerStart($handler)
+    {
+        if (!is_callable($handler)) {
+            throw new \RuntimeException('onWorkerStart handler 不可运行');
+        }
+
+        $this->settings['onWorkerStart'] = $handler;
+    }
+
+    public function onWorkerStop($handler)
+    {
+        if (!is_callable($handler)) {
+            throw new \RuntimeException('onWorkerStop handler 不可运行');
+        }
+
+        $this->settings['onWorkerStop'] = $handler;
+    }
+
+    public function onPatch($handler) {
+        if (!is_callable($handler)) {
+            throw new \RuntimeException('onPatch handler 不可运行');
+        }
+
+        $this->settings['onPatch'] = $handler;
+    }
+
+    public function setting($name, $value = null)
+    {
+        if (!is_null($value)) {
+            $this->settings[$name] = $value;
+            return;
+        }
+
+        return $this->settings[$name] ?? null;
+    }
+
+    public function mod()
+    {
+        return $this->mod;
+    }
+
+    public function getRouter()
+    {
+        return $this->router;
+    }
+
+    public function use (...$handler)
+    {
+        if (~$this->mod & self::MOD_WEB) {
+            throw new \RuntimeException('只有 web 模式下才能添加中间件');
+        }
+        $this->router->use(...$handler);
+        return $this;
+    }
+
+    public function get($path, ...$handlers)
+    {
+        $this->router->map('GET', $path, ...$handlers);
+        return $this;
+    }
+
+    public function post($path, ...$handlers)
+    {
+        $this->router->map('POST', $path, ...$handlers);
+        return $this;
+    }
+
+    public function put($path, ...$handlers)
+    {
+        $this->router->map('PUT', $path, ...$handlers);
+        return $this;
+    }
+
+    public function delete($path, ...$handlers)
+    {
+        $this->router->map('DELETE', $path, ...$handlers);
+        return $this;
+    }
+
+    public function any($path, ...$handlers)
+    {
+        $this->router->map('*', $path, ...$handlers);
+        return $this;
+    }
+
+    public function map($method, $path, ...$handlers)
+    {
+        if (~$this->mod & self::MOD_WEB) {
+            throw new \RuntimeException('只有 web 模式下才能添加路由');
+        }
+        $this->router->map($method, $path, ...$handlers);
+        return $this;
+    }
+
+    public function task($name, $cb)
+    {
+        if (!is_callable($cb)) {
+            throw new \RuntimeException("task {$name} 回调必须为 callable");
+        }
+        $this->_tasks[$name] = $cb;
+    }
+
+    public function cron($rule, $action, $triggerOnStart, $timeout)
+    {
+        if (~$this->mod & self::MOD_CRON) {
+            throw new \RuntimeException('只有 cron 模式下才能添加定时器');
+        }
+        if (!is_callable($action)) {
+            throw new \RuntimeException("cron {$rule} 回调必须为 callable");
+        }
+        $this->_crontab[] = ['rule' => $rule, 'action' => $action, 'triggerOnStart' => $triggerOnStart, 'timeout' => $timeout];
+    }
+
+    public function _onRequest(Request $request, Response $response)
+    {
+        $cxt = new Context($this->server, $request, $response);
+        $cxt->setError($this->_error);
+        $cxt->setSuccess($this->_success);
+
+        $gzip = Sanitize::sanitize(($this->setting('gzip')), Sanitize::INT);
+        $isDebug = Sanitize::bool($this->setting('debug'));
+
+        if (!$isDebug && $gzip > 0) {
+            $cxt->gzip($gzip);
+        }
+        try {
+            $this->process($cxt);
+        } catch (NotFound $e) {
+            $cxt->notFound();
+        } catch (MethodNotAllowerd $e) {
+            $cxt->notAllowed();
+        } catch (\Exception $e) {
+            (new Php($cxt))($e);
+        }
+    }
+
+    public function _onTask($server, $task_id, $from_id, $data)
+    {
+        $server->taskCount++;
+        $type = $data['type'];
+        $type = str_replace('::', ':', $type);
+        $data = $data['data'];
+        array_unshift($data, $server);
+        if (!isset($this->_tasks[$type])) {
+            throw new \RuntimeException("task ${type} 不存在");
+        }
+        if ($cb = $this->_tasks[$type]) {
+            try {
+                $start = microtime(true);
+                $rs = call_user_func_array($cb, $data);
+                $time = microtime(true) - $start;
+                if ($time > 2) {
+                    $out = "$type 执行时间过长 $time ";
+                    foreach ($data as $index => $val) {
+                        if (!is_array($val) && !is_object($val)) {
+                            $out .= ' ' . $val;
+                        }
+                    }
+                    echo $out . "\n";
+                }
+            } catch (\Exception $e) {
+                (new Php(null))->cli($e);
+                return false;
+            }
+            return $rs;
+        }
+        return false;
+    }
+
+    // 防止出错
+    public function _onFinish($server, $task_id, $data)
+    {
+        return $data;
+    }
+
+    public function _onWorkerStart($server, $worker_id)
+    {
+        $onWorkerStart = $this->setting('onWorkerStart');
+        if (is_callable($onWorkerStart)) {
+            call_user_func($onWorkerStart, $server, $worker_id);
+        }
+
+        // 如果是 cron 模式, 将 crontab 的任务平均分配到每个 worker 执行,
+        // 长时间的执行的任务 worker 可以投递到 task_worker 执行
+        if (!$server->taskworker && $this->mod & self::MOD_CRON) {
+            $worker_num = $server->setting['worker_num'];
+            foreach ($this->_crontab as $index => $cron) {
+                if ($index % $worker_num == $worker_id) {
+                    (new Cron($this->server, $cron['rule'], $cron['action'], $cron['timeout']))->run($cron['triggerOnStart']);
+                }
+            }
+        }
+
+        $uname = php_uname('s');
+        if ($uname != 'Darwin') {
+            $processTitle = $this->serverConfig['process_title'] ?? $this->setting('process_title');
+            if ($processTitle) {
+                swoole_set_process_name($processTitle . ' ' . ($server->taskworker ? 'TaskWorker' : 'WebWorker'));
+            }
+        }
+    }
+
+    public function _onWorkerStop($server, $worker_id)
+    {
+        $onWorkerStop = $this->setting('onWorkerStop');
+        if (is_callable($onWorkerStop)) {
+            call_user_func($onWorkerStop, $server, $worker_id);
+        }
+
+        $errno = $server->getLastError();
+        $error = swoole_strerror($errno);
+        echo date('Y-m-d H:i:s') . " Worker {$worker_id} 重启, 任务数: {$server->taskCount} 错误: {$errno} {$error}\n";
+    }
+
+    public function _onStart($server)
+    {
+        $onStart = $this->setting('onStart');
+        if (is_callable($onStart)) {
+            call_user_func($onStart, $server);
+        }
+    }
+
+    public function run()
+    {
+        $cpuNum = Misc::cpu_number();
+        $uname = php_uname('s');
+
+        $serverSettings = (array)$this->serverConfig ?? [];
+
+        $host = $serverSettings['host'] ?? '127.0.0.1';
+        $port = $serverSettings['port'] ?? '8000';
+
+        $this->server = new Server($host, $port);
+
+        if (!isset($serverSettings['dispatch_mode'])) {
+            $serverSettings['dispatch_mode'] = 3;
+        }
+
+        if (!isset($serverSettings['task_ipc_mode'])) {
+            $serverSettings['task_ipc_mode'] = 3;
+        }
+
+        if (!isset($serverSettings['message_queue_key'])) {
+            $serverSettings['message_queue_key'] = uniqid();
+        }
+        unset($serverSettings['message_queue_key']);
+
+        if (!isset($serverSettings['task_tmpdir'])) {
+            $serverSettings['task_tmpdir'] = '/dev/shm';
+        }
+
+        if ($uname == 'Darwin') {
+            unset($serverSettings['task_tmpdir']);
+        }
+
+        if (!isset($serverSettings['task_max_request'])) {
+            $serverSettings['task_max_request'] = 4000;
+        }
+        if (!isset($serverSettings['backlog'])) {
+            $serverSettings['backlog'] = 3000;
+        }
+
+        $serverSettings['max_request'] = 0;
+        $serverSettings['open_tcp_nodelay'] = 1;
+
+        // 关闭自动解析 post 数据, 自己写 middleware 实现
+        $serverSettings['http_parse_post'] = 0;
+
+        $this->server->on('ManagerStart', [$this, '_onStart']);
+        $this->server->on('WorkerStart', [$this, '_onWorkerStart']);
+        $this->server->on('WorkerStop', [$this, '_onWorkerStop']);
+
+        if (!$serverSettings['worker_num']) {
+            $serverSettings['worker_num'] = $cpuNum;
+        }
+
+        $this->server->on('Request', [$this, '_onRequest']);
+
+        if (count($this->_tasks)) {
+            if (!$serverSettings['task_worker_num']) {
+                $serverSettings['task_worker_num'] = $cpuNum * 2;
+            }
+            //
+            if ($this->mod == (self::MOD_WEB | self::MOD_CRON)) {
+                $serverSettings['task_worker_num'] *= 2;
+            }
+            $this->server->on('Task', [$this, '_onTask']);
+            $this->server->on('Finish', [$this, '_onFinish']);
+        } else {
+            unset($serverSettings['task_worker_num']);
+        }
+
+        $this->server->on('start', function () use ($host, $port, $uname) {
+            if ($uname != 'Darwin') {
+                $processTitle = $this->serverConfig['process_title'] ?? $this->setting('process_title');
+                if ($processTitle) {
+                    swoole_set_process_name($processTitle . ' Master');
+                }
+            }
+            echo "服务已启动, 正在监听 {$host} 端口: {$port}, 请通过 http://{$host}:{$port} 访问网站 \n";
+        });
+
+        if ($this->mod & self::MOD_WEB) {
+            $this->_initMiddleware();
+        }
+
+        $this->server->set($serverSettings);
+        $this->server->debug = Sanitize::bool($this->settings['debug']);
+        $this->server->settings = $this->settings;
+
+        $this->server->start();
+    }
+
+
+
+    public function _initMiddleware()
+    {
+        if (Sanitize::bool($this->setting('determine_proxy_ip'))) {
+            $this->chain(new IpAddress());
+        }
+
+        $this->chain(new Powered());
+
+        if (Sanitize::bool($this->setting('parse_body'))) {
+            $this->chain(new BodyParser());
+        }
+
+        if (Sanitize::bool($this->setting('method_override'))) {
+            $this->chain(new OverrideMethod());
+        }
+
+    }
+
+    public function handler($c)
+    {
+        if (is_null($c->settings)) {
+            $c->settings = new \ArrayObject();
+        }
+
+        $c->app = $this;
+        $c->settings = Misc::mergeObject($c->settings, $this->settings);
+
+        yield;
+    }
+
+    public function done($c)
+    {
+        yield $this->router;
+    }
+}
