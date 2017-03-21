@@ -14,7 +14,7 @@ use G\Util\Sanitize;
 use Swoole\Http\Server;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
-use Swoole\Process;
+
 
 class Application implements IMiddleware
 {
