@@ -21,6 +21,7 @@ class Loader
     private $_timeoutReg = '~@timeout\s(.+)~';
     private $_triggerOnStartReg = '~@triggerOnStart\s+(true|false)~';
     private $_indexReg = '~@index\s(.+)~';
+    private $_websocketReg = '~@websocket\s+(true|false)~';
 
     private $_resourceDir;
 
@@ -150,6 +151,8 @@ class Loader
                 $this->_tasks["{$ref->getShortName()}:{$routeInfo['method']}"] = "{$ref->getName()}::{$routeInfo['method']}";
             } else if ($routeInfo['cron'] && ($this->_mod & Application::MOD_CRON)) {
                 $this->_crontab[] = [$routeInfo['cron'], "{$ref->getName()}::{$routeInfo['method']}", $routeInfo['triggerOnStart'], $routeInfo['timeout']];
+            } else if ($routeInfo['websocket'] && $this->_mod & Application::MOD_WEB) {
+
             } else if ($routeInfo['public'] && $this->_mod & Application::MOD_WEB) {
                 $routeInfo['middleware'][] = function ($c) use ($routeInfo) {
                     $obj = new $routeInfo['class']($c);
@@ -179,6 +182,7 @@ class Loader
             'cron' => '',
             'timeout' => null,
             'triggerOnStart' => false,
+            'websocket' => false,
         ];
 
         $doc = $method->getDocComment();
@@ -251,6 +255,13 @@ class Loader
         if (preg_match($this->_indexReg, $doc, $m)) {
             $index = intval(trim($m[1]));
             $info['index'] = $index;
+        }
+
+        if (preg_match($this->_websocketReg, $doc, $m)) {
+            $websocket = strtolower(trim($m[1]));
+            if ($websocket == 'true') {
+                $info['websocket'] = true;
+            }
         }
 
         return $info;

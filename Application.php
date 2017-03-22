@@ -11,7 +11,8 @@ use G\Middleware\OverrideMethod;
 use G\Middleware\Powered;
 use G\Util\Misc;
 use G\Util\Sanitize;
-use Swoole\Http\Server;
+use Swoole\Http\Server as HttpServer;
+use Swoole\Websocket\Server as WebsocketServer;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
 
@@ -37,6 +38,11 @@ class Application implements IMiddleware
     protected $serverConfig;
 
     /**
+     * @var Session
+     */
+    protected $sessions;
+
+    /**
      * @var Router
      */
     protected $router;
@@ -49,6 +55,8 @@ class Application implements IMiddleware
 
     private $_crontab = [];
 
+    private $_action = [];
+
     private $mod = self::MOD_WEB;
 
     use TMiddleware;
@@ -57,6 +65,8 @@ class Application implements IMiddleware
     {
         $this->settings = new \ArrayObject($config);
         $this->serverConfig = new \ArrayObject($serverConfig);
+
+        $this->sessions = new Session();
 
         $this->mod = $mod;
         if ($this->mod & self::MOD_WEB) {
@@ -204,6 +214,14 @@ class Application implements IMiddleware
         $this->_crontab[] = ['rule' => $rule, 'action' => $action, 'triggerOnStart' => $triggerOnStart, 'timeout' => $timeout];
     }
 
+    public function action($name, $cb)
+    {
+        if (!is_callable($cb)) {
+            throw new \RuntimeException("action {$name} 回调必须为 callable");
+        }
+        $this->_action[$name] = $cb;
+    }
+
     public function _onRequest(Request $request, Response $response)
     {
         $cxt = new Context($this->server, $request, $response);
@@ -225,6 +243,28 @@ class Application implements IMiddleware
         } catch (\Exception $e) {
             (new Php($cxt))($e);
         }
+    }
+
+    public function _onOpen($server, $request)
+    {
+        $fd = $request->fd;
+        $this->sessions->set($fd, [
+            'fd' => $request->fd,
+            'uid' => '',
+            'header' => $request->header,
+            'server' => $request->server,
+            'cookie' => $request->cookie,
+        ]);
+    }
+
+    public function _onClose($server, $fd)
+    {
+        $this->sessions->delete($fd);
+    }
+
+    public function _onMessage($server, $frame)
+    {
+
     }
 
     public function _onTask($server, $task_id, $from_id, $data)
@@ -323,11 +363,21 @@ class Application implements IMiddleware
         $host = $serverSettings['host'] ?? '127.0.0.1';
         $port = $serverSettings['port'] ?? '8000';
 
-        $this->server = new Server($host, $port);
+        if (Sanitize::bool($this->setting('websocket'))) {
+            $this->server = new WebsocketServer($host, $port);
+            $this->server->on('open', [$this, '_onOpen']);
+            $this->server->on('close', [$this, '_onClose']);
+            $this->server->on('message', [$this, '_onMessage']);
 
-        if (!isset($serverSettings['dispatch_mode'])) {
-            $serverSettings['dispatch_mode'] = 3;
+            // 不能设为1/3, 没有onClose事件, 详情看 https://wiki.swoole.com/wiki/page/277.html
+            $serverSettings['dispatch_mode'] = 2;
+        } else {
+            $this->server = new HttpServer($host, $port);
+            if (!isset($serverSettings['dispatch_mode'])) {
+                $serverSettings['dispatch_mode'] = 3;
+            }
         }
+
 
         if (!isset($serverSettings['task_ipc_mode'])) {
             $serverSettings['task_ipc_mode'] = 3;
