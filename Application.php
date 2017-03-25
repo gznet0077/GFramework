@@ -11,6 +11,7 @@ use G\Middleware\OverrideMethod;
 use G\Middleware\Powered;
 use G\Util\Misc;
 use G\Util\Sanitize;
+use Swoole\Buffer;
 use Swoole\Http\Server as HttpServer;
 use Swoole\Websocket\Server as WebsocketServer;
 use Swoole\Http\Request;
@@ -119,7 +120,8 @@ class Application implements IMiddleware
         $this->settings['onWorkerStop'] = $handler;
     }
 
-    public function onPatch($handler) {
+    public function onPatch($handler)
+    {
         if (!is_callable($handler)) {
             throw new \RuntimeException('onPatch handler 不可运行');
         }
@@ -214,12 +216,13 @@ class Application implements IMiddleware
         $this->_crontab[] = ['rule' => $rule, 'action' => $action, 'triggerOnStart' => $triggerOnStart, 'timeout' => $timeout];
     }
 
-    public function action($name, $cb)
+    public function action($name, $handler)
     {
-        if (!is_callable($cb)) {
+        if (!is_callable($handler)) {
             throw new \RuntimeException("action {$name} 回调必须为 callable");
         }
-        $this->_action[$name] = $cb;
+        $name = preg_replace('/:{2,}/', ':', $name);
+        $this->_action[$name] = $handler;
     }
 
     public function _onRequest(Request $request, Response $response)
@@ -251,9 +254,8 @@ class Application implements IMiddleware
         $this->sessions->set($fd, [
             'fd' => $request->fd,
             'uid' => '',
-            'header' => $request->header,
-            'server' => $request->server,
-            'cookie' => $request->cookie,
+            'request' => $request,
+            'buff' => new Buffer(512),
         ]);
     }
 
@@ -264,7 +266,29 @@ class Application implements IMiddleware
 
     public function _onMessage($server, $frame)
     {
+        $fd = $frame->fd;
+        $session = $this->sessions->get($fd);
+        $session['buff']->append($frame->data);
+        if ($frame->finish) {
+            $cxt = new Action($server, $session);
 
+            $action = $cxt->getAction();
+
+            if ($action && $this->_action[$action]) {
+                try {
+                    if ($this->_action[$action] instanceof IMiddleware) {
+                        $this->_action[$action]->process($cxt);
+                    } else if (is_callable($this->_action[$action])) {
+                        call_user_func($this->_action[$action], $cxt);
+                    }
+                } catch (\Exception $e) {
+                    (new Php($cxt))($e);
+                }
+            }
+
+            $session['buff']->clear();
+        }
+        $this->sessions->set($fd, $session);
     }
 
     public function _onTask($server, $task_id, $from_id, $data)
@@ -324,6 +348,15 @@ class Application implements IMiddleware
             }
         }
 
+        // 在第一个进程定时清空过期的 session
+        if ($this->serverConfig['websocket'] && !$server->taskworker && $worker_id == 0) {
+            $server->tick(5 * 1000, function () use ($server) {
+                $this->sessions->clear(5 * 60, function ($fd) use ($server) {
+                    $server->close($fd);
+                });
+            });
+        }
+
         $uname = php_uname('s');
         if ($uname != 'Darwin') {
             $processTitle = $this->serverConfig['process_title'] ?? $this->setting('process_title');
@@ -363,7 +396,7 @@ class Application implements IMiddleware
         $host = $serverSettings['host'] ?? '127.0.0.1';
         $port = $serverSettings['port'] ?? '8000';
 
-        if (Sanitize::bool($this->setting('websocket'))) {
+        if (Sanitize::bool($this->serverConfig['websocket'])) {
             $this->server = new WebsocketServer($host, $port);
             $this->server->on('open', [$this, '_onOpen']);
             $this->server->on('close', [$this, '_onClose']);
@@ -453,8 +486,6 @@ class Application implements IMiddleware
 
         $this->server->start();
     }
-
-
 
     public function _initMiddleware()
     {
