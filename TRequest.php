@@ -4,6 +4,7 @@
 namespace G;
 
 use G\Util\Misc;
+use G\Util\Sanitize;
 
 trait TRequest
 {
