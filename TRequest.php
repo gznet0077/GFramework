@@ -4,6 +4,7 @@
 namespace G;
 
 use G\Util\Misc;
+use G\Util\Sanitize;
 
 trait TRequest
 {
@@ -172,7 +173,6 @@ trait TRequest
     public function param($name = null, $default = null, $type = Sanitize::STRING)
     {
         $params = $this->params ?? [];
-
         return Sanitize::filter($params, $name, $type, $default);
     }
 
