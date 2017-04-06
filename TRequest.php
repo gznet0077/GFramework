@@ -173,7 +173,6 @@ trait TRequest
     public function param($name = null, $default = null, $type = Sanitize::STRING)
     {
         $params = $this->params ?? [];
-
         return Sanitize::filter($params, $name, $type, $default);
     }
 
