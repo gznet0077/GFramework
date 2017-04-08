@@ -120,14 +120,6 @@ class Application implements IMiddleware
         $this->settings['onWorkerStop'] = $handler;
     }
 
-    public function onPatch($handler)
-    {
-        if (!is_callable($handler)) {
-            throw new \RuntimeException('onPatch handler 不可运行');
-        }
-
-        $this->settings['onPatch'] = $handler;
-    }
 
     public function setting($name, $value = null)
     {
@@ -225,6 +217,12 @@ class Application implements IMiddleware
         $this->_action[$name] = $handler;
     }
 
+    /**
+     * http request
+     *
+     * @param Request $request
+     * @param Response $response
+     */
     public function _onRequest(Request $request, Response $response)
     {
         $cxt = new Context($this->server, $request, $response);
@@ -248,22 +246,75 @@ class Application implements IMiddleware
         }
     }
 
-    public function _onOpen($server, $request)
+    /**
+     * websocket, 自定义握手, 只是为了改变Header 的 server 值..
+     *
+     * @param Request $request
+     * @param Response $response
+     * @return bool
+     */
+    public function _onHandShake(Request $request, Response $response)
     {
+        if (
+            !isset($request->header['sec-websocket-key'])
+            || 0 === preg_match('#^[+/0-9A-Za-z]{21}[AQgw]==$#', $request->header['sec-websocket-key'])
+            || 16 !== strlen(base64_decode($request->header['sec-websocket-key']))
+
+        ) {
+            $response->end();
+            return false;
+        }
+
+        $key = base64_encode(sha1($request->header['sec-websocket-key']
+            . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11',
+            true));
+
+        $headers = array(
+            'Upgrade'               => 'websocket',
+            'Connection'            => 'Upgrade',
+            'Sec-WebSocket-Accept'  => $key,
+            'Sec-WebSocket-Version' => '13',
+            'KeepAlive'             => 'off',
+            'server'                => 'DK server/1.0.21',
+            'X-Powered-By'          => 'DK Engine'
+        );
+        foreach ($headers as $key => $val)
+        {
+            $response->header($key, $val);
+        }
+
         $fd = $request->fd;
+
         $this->sessions->set($fd, [
             'fd' => $request->fd,
             'uid' => '',
             'request' => $request,
             'buff' => new Buffer(512),
         ]);
+
+        $response->status(101);
+        $response->end();
+        return true;
     }
 
+
+    /**
+     * websocket
+     *
+     * @param $server
+     * @param $fd
+     */
     public function _onClose($server, $fd)
     {
         $this->sessions->delete($fd);
     }
 
+    /**
+     * websocket
+     *
+     * @param $server
+     * @param $frame
+     */
     public function _onMessage($server, $frame)
     {
         $fd = $frame->fd;
@@ -324,7 +375,7 @@ class Application implements IMiddleware
         return false;
     }
 
-    // 防止出错
+    // 防止出错, task finish
     public function _onFinish($server, $task_id, $data)
     {
         return $data;
@@ -398,7 +449,7 @@ class Application implements IMiddleware
 
         if (Sanitize::bool($this->serverConfig['websocket'])) {
             $this->server = new WebsocketServer($host, $port);
-            $this->server->on('open', [$this, '_onOpen']);
+            $this->server->on('handshake', [$this, '_onHandShake']);
             $this->server->on('close', [$this, '_onClose']);
             $this->server->on('message', [$this, '_onMessage']);
 

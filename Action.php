@@ -9,7 +9,9 @@ use Swoole\WebSocket\Server;
 
 class Action implements IMiddleware
 {
-    use TMiddleware, TRequest, TConext;
+    use TMiddleware, TRequest, TConext {
+        TRequest::data as RequestData;
+    }
 
     protected $data;
 
@@ -49,6 +51,12 @@ class Action implements IMiddleware
     public function getData()
     {
         return $this->data;
+    }
+
+    public function data($name = null, $default = null, $type = Sanitize::STRING)
+    {
+        $data = $this->data ?? [];
+        return Sanitize::filter($data, $name, $type, $this->RequestData($name, $default, $type));
     }
 
     public function push($action, $data)
