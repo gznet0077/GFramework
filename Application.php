@@ -424,9 +424,11 @@ class Application implements IMiddleware
             call_user_func($onWorkerStop, $server, $worker_id);
         }
 
-        $errno = $server->getLastError();
-        $error = swoole_strerror($errno);
-        echo date('Y-m-d H:i:s') . " Worker {$worker_id} 重启, 任务数: {$server->taskCount} 错误: {$errno} {$error}\n";
+        if (Sanitize::bool($this->setting('debug'))) {
+            $errno = $server->getLastError();
+            $error = swoole_strerror($errno);
+            echo date('Y-m-d H:i:s') . " Worker {$worker_id} 重启, 任务数: {$server->taskCount} 错误: {$errno} {$error}\n";
+        }
     }
 
     public function _onStart($server)
