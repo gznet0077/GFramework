@@ -12,7 +12,7 @@ use Swoole\Http\Server;
 
 class Context implements IMiddleware
 {
-    use TMiddleware, TRequest, TConext;
+    use TMiddleware, TRequest, TContext;
 
     /**
      * @var Response

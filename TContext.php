@@ -5,7 +5,7 @@ namespace G;
 
 use G\Util\Sanitize;
 
-trait TConext
+trait TContext
 {
     /**
      * @var Server
@@ -129,7 +129,7 @@ trait TConext
 
     public function __get($name)
     {
-        return $this->_collection[$name] ?? null;
+        return $this->_collection[$name] ?? $this->server->{$name} ?? null;
     }
 
     public function __set($name, $value)

@@ -9,7 +9,7 @@ use Swoole\WebSocket\Server;
 
 class Action implements IMiddleware
 {
-    use TMiddleware, TRequest, TConext {
+    use TMiddleware, TRequest, TContext {
         TRequest::data as RequestData;
     }
 
@@ -61,6 +61,7 @@ class Action implements IMiddleware
 
     public function push($action, $data)
     {
+        $action = preg_replace('/:{2}/', ':', $action);
         if (Sanitize::bool($this->settings['debug'])) {
             $data = json_encode(['action' => $action, 'data' => $data], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
         } else {
@@ -68,6 +69,11 @@ class Action implements IMiddleware
         }
 
         $this->server->push($this->fd, $data);
+    }
+
+    public function halt($action, $msg)
+    {
+        $this->push($action, ['msg' => $msg]);
     }
 
     public function response($data) {
