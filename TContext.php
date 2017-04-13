@@ -128,8 +128,8 @@ trait TContext
     }
 
     public function __get($name)
-    {
-        return $this->_collection[$name] ?? $this->server->{$name} ?? null;
+    {   // TODO: Action里会直接调用$this->>server的值,要修改
+        return $this->_collection[$name] ?? null;
     }
 
     public function __set($name, $value)
