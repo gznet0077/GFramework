@@ -578,10 +578,9 @@ class Application implements IMiddleware
         if ($this->mod & self::MOD_WEB) {
             $this->_initMiddleware();
         }
-        if (Sanitize::bool($serverSettings['daemonize'])) {
-            if (isset($serverSettings['pid_file']) && strpos($serverSettings['pid_file'], './') === 0) {
-                $serverSettings['pid_file'] = $root . '/' . $serverSettings['pid_file'];
-            }
+
+        if (isset($serverSettings['pid_file']) && strpos($serverSettings['pid_file'], './') === 0) {
+            $serverSettings['pid_file'] = $root . '/' . $serverSettings['pid_file'];
         }
 
         $this->server->set($serverSettings);
