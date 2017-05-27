@@ -490,6 +490,8 @@ class Application implements IMiddleware
 
         $serverSettings = (array)$this->serverConfig ?? [];
 
+        $root = $serverSettings['root'] ?? getcwd();
+
         $host = $serverSettings['host'] ?? '127.0.0.1';
         $port = $serverSettings['port'] ?? '8000';
 
@@ -575,6 +577,11 @@ class Application implements IMiddleware
 
         if ($this->mod & self::MOD_WEB) {
             $this->_initMiddleware();
+        }
+        if (Sanitize::bool($serverSettings['daemonize'])) {
+            if (isset($serverSettings['pid_file']) && strpos($serverSettings['pid_file'], './') === 0) {
+                $serverSettings['pid_file'] = $root . '/' . $serverSettings['pid_file'];
+            }
         }
 
         $this->server->set($serverSettings);
