@@ -1,0 +1,14 @@
+{
+    "name": "lucky/g-framework",
+    "require": {
+        "php": "^7.1"
+    },
+    "autoload": {
+        "psr-4": { "G\\": "src/" }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "master"
+        }
+    }
+}

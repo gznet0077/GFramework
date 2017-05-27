@@ -63,19 +63,19 @@ class Cron
     public function trigger($isOnStart)
     {
         $this->running = true;
-        if ($this->timeout > 0) {
-            // 如果在回调中没有调用 Cron->task() 方法就必须调用 Cron->free() 来释放锁
-            $this->timer = $this->server->after($this->timeout * 1000, function () {
-                $this->free();
-                if ($this->server->debug) {
-                    throw new \RuntimeException("cron {$this->cron} 调用超时, 
-                    可能在回调中没有调用 Cron->task() 方法或没有调用 Cron->free() 来释放锁");
-                } else {
-                    echo "cron {$this->cron} 调用超时, 
-                    可能在回调中没有调用 Cron->task() 方法或没有调用 Cron->free() 来释放锁\n";
-                }
-            });
-        }
+//        if ($this->timeout > 0) {
+//            // 如果在回调中没有调用 Cron->task() 方法就必须调用 Cron->free() 来释放锁
+//            $this->timer = $this->server->after($this->timeout * 1000, function () {
+//                $this->free();
+//                if ($this->server->debug) {
+//                    throw new \RuntimeException("cron {$this->cron} 调用超时,
+//                    可能在回调中没有调用 Cron->task() 方法或没有调用 Cron->free() 来释放锁");
+//                } else {
+//                    echo "cron {$this->cron} 调用超时,
+//                    可能在回调中没有调用 Cron->task() 方法或没有调用 Cron->free() 来释放锁\n";
+//                }
+//            });
+//        }
 
         try {
             call_user_func($this->cron, $this, $isOnStart);

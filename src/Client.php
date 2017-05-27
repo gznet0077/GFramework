@@ -10,9 +10,8 @@ class Client
      * @var \Swoole\Http\Client
      */
     private $_client;
-    private $_isSwoole;
 
-    public function __construct($host, $port, $isSwoole = false)
+    public function __construct($host, $port)
     {
         $this->_client = new \Swoole\Http\Client($host, $port);
     }
