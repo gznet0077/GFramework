@@ -452,7 +452,7 @@ class Application implements IMiddleware
             $server->tick(1000, function () use ($server) {
                 echo sprintf(
                         '任务统计: 当前任务数: %s 总任务数: %s 总用时: %s 平均: %s',
-                    $server->stats()['tasking_num'],
+                        $server->stats()['tasking_num'],
                         $this->_task_count->get(),
                         $this->_task_time->get() / 1000,
                         $this->_task_time->get() / 1000 / ($this->_task_count->get() ?: 1)
