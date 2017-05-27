@@ -490,7 +490,7 @@ class Application implements IMiddleware
 
         $serverSettings = (array)$this->serverConfig ?? [];
 
-        $root = $serverSettings['root'] ?? getcwd();
+        $root = $this->setting('root') ?? $serverSettings['root'] ?? getcwd();
 
         $host = $serverSettings['host'] ?? '127.0.0.1';
         $port = $serverSettings['port'] ?? '8000';
