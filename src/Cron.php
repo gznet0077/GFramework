@@ -107,7 +107,7 @@ class Cron
         ++$this->runningTask;
         $this->server->task($data, -1, function ($serv, $task_id, $data) use ($fn) {
             // 一分钟超时, 如果一分钟还没有返回, 强制 kill 进程
-            $timer = $serv->after(60, function() use ($serv) {
+            $timer = $serv->after(60 * 1000, function() use ($serv) {
                 --$this->runningTask;
                 $this->free();
                 $serv->stop();
