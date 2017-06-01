@@ -579,6 +579,10 @@ class Application implements IMiddleware
             $this->_initMiddleware();
         }
 
+        if (isset($serverSettings['log_file']) && strpos($serverSettings['log_file'], './') === 0) {
+            $serverSettings['log_file'] = $chroot . '/' . $serverSettings['log_file'];
+        }
+
         if (isset($serverSettings['pid_file']) && strpos($serverSettings['pid_file'], './') === 0) {
             $serverSettings['pid_file'] = $chroot . '/' . $serverSettings['pid_file'];
         }
