@@ -24,7 +24,7 @@ class Cron
 
     private $timer;
 
-    private $timeout = 60;
+    private $timeout = 10;
 
     private $lastCheck = '';
 
@@ -106,14 +106,7 @@ class Cron
 
         ++$this->runningTask;
         $this->server->task($data, -1, function ($serv, $task_id, $data) use ($fn) {
-            // 一分钟超时, 如果一分钟还没有返回, 强制 kill 进程
-            $timer = $serv->after(60 * 1000, function() use ($serv) {
-                --$this->runningTask;
-                $this->free();
-                $serv->stop();
-            });
             call_user_func($fn, $serv, $task_id, $data);
-            $serv->clearTimer($timer);
             --$this->runningTask;
             $this->free();
         });
