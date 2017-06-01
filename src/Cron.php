@@ -24,7 +24,9 @@ class Cron
 
     private $timer;
 
-    private $timeout = 10;
+    private $timeout = 60;
+
+    private $lastCheck = '';
 
     /**
      * @var callable
@@ -49,7 +51,7 @@ class Cron
             $this->trigger(true);
         }
 
-        $this->server->tick(1000, function ($id) {
+        $this->server->tick(100, function ($id) {
             // 同一时间只执行一次
             if ($this->running) {
                 return;
@@ -104,7 +106,14 @@ class Cron
 
         ++$this->runningTask;
         $this->server->task($data, -1, function ($serv, $task_id, $data) use ($fn) {
+            // 一分钟超时, 如果一分钟还没有返回, 强制 kill 进程
+            $timer = $serv->after(60, function() use ($serv) {
+                --$this->runningTask;
+                $this->free();
+                $serv->stop();
+            });
             call_user_func($fn, $serv, $task_id, $data);
+            $serv->clearTimer($timer);
             --$this->runningTask;
             $this->free();
         });
@@ -195,6 +204,11 @@ class Cron
     private function _isTimeUp()
     {
         $ps = date('s,i,H,d,m,w');
+        // 同一秒只执行一次
+        if ($this->lastCheck == $ps) {
+            return false;
+        }
+        $this->lastCheck = $ps;
         $ps = explode(',', $ps);
         list($s, $m, $h, $d, $M, $w) = array_map('intval', $ps);
 
