@@ -448,7 +448,7 @@ class Application implements IMiddleware
                 swoole_set_process_name($processTitle . ' ' . ($server->taskworker ? 'TaskWorker' : 'WebWorker'));
             }
         }
-        if ($worker_id == 0) {
+        if ($worker_id == 0 && $this->mod & self::MOD_CRON) {
             $server->tick(1000, function () use ($server) {
                 echo sprintf(
                         '任务统计: 当前任务数: %s 总任务数: %s 总用时: %s 平均: %s',
