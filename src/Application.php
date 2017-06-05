@@ -450,13 +450,16 @@ class Application implements IMiddleware
         }
         if ($worker_id == 0 && $this->mod & self::MOD_CRON) {
             $server->tick(1000, function () use ($server) {
-                echo sprintf(
-                        '任务统计: 当前任务数: %s 总任务数: %s 总用时: %s 平均: %s',
-                        $server->stats()['tasking_num'],
-                        $this->_task_count->get(),
-                        $this->_task_time->get() / 1000,
-                        $this->_task_time->get() / 1000 / ($this->_task_count->get() ?: 1)
-                    ) . PHP_EOL;
+                $tasking_num = $server->stats()['tasking_num'];
+                if ($tasking_num) {
+                    echo sprintf(
+                            '任务统计: 当前任务数: %s 总任务数: %s 总用时: %s 平均: %s',
+                            $tasking_num,
+                            $this->_task_count->get(),
+                            $this->_task_time->get() / 1000,
+                            $this->_task_time->get() / 1000 / ($this->_task_count->get() ?: 1)
+                        ) . PHP_EOL;
+                }
             });
         }
     }
