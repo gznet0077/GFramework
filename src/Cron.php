@@ -136,6 +136,15 @@ class Cron
         $this->free();
     }
 
+    public function taskWaitMulti($tasks, $timeout = 10)
+    {
+        $count = count($tasks);
+        $this->runningTask += $count;
+        $this->server->taskWaitMulti($tasks, $timeout);
+        $this->runningTask -= $count;
+        $this->free();
+    }
+
     public function free()
     {
         if ($this->runningTask > 0) {
