@@ -105,13 +105,13 @@ trait TContext
         }
     }
 
-    public function taskWait($name, ...$data)
+    public function taskWait($name, $timeout = 1, ...$data)
     {
         $data = [
             'type' => $name,
             'data' => $data,
         ];
-        return $this->server->task($data);
+        return $this->server->taskwait($data, $timeout);
     }
 
     public function taskWaitMulti($tasks, $timeout = 10)

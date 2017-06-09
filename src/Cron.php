@@ -112,6 +112,30 @@ class Cron
         });
     }
 
+    public function taskWait($name, $timeout = 1, ...$data)
+    {
+        $fn = end($data);
+        if (is_callable($fn)) {
+            array_pop($data);
+            $data = [
+                'type' => $name,
+                'data' => $data,
+            ];
+        } else {
+            $fn = function () {
+            };
+            $data = [
+                'type' => $name,
+                'data' => $data,
+            ];
+        }
+
+        ++$this->runningTask;
+        $this->server->taskwait($data, $timeout);
+        --$this->runningTask;
+        $this->free();
+    }
+
     public function free()
     {
         if ($this->runningTask > 0) {
