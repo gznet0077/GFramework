@@ -243,4 +243,14 @@ class Misc
         }
         return $config;
     }
+
+    static public function pack($data)
+    {
+        return \Swoole\Serialize\pack($data);
+    }
+
+    static public function unpack($data)
+    {
+        return \Swoole\Serialize\unpack($data);
+    }
 }
