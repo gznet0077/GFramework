@@ -527,6 +527,14 @@ class Application implements IMiddleware
             $serverSettings['task_tmpdir'] = '/dev/shm';
         }
 
+        if (!isset($serverSettings['heartbeat_check_interval'])) {
+            $serverSettings['heartbeat_check_interval'] = 10;
+        }
+
+        if (!isset($serverSettings['heartbeat_idle_time'])) {
+            $serverSettings['heartbeat_idle_time'] = 60;
+        }
+
         if ($uname == 'Darwin') {
             unset($serverSettings['task_tmpdir']);
         }
