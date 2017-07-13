@@ -33,6 +33,12 @@ trait TRequest
         return $val;
     }
 
+    public function isToolClient()
+    {
+        $userAgent = $this->header('user-agent');
+        return stripos($userAgent, 'lucky-tools') !== false;
+    }
+
     public function getUri()
     {
         return $this->server('request_uri', '/');
