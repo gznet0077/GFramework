@@ -382,10 +382,10 @@ class Application implements IMiddleware
         }
         if ($cb = $this->_tasks[$type]) {
             try {
+                $this->_running_task[$type] = true;
                 $start = microtime(true);
                 $rs = call_user_func_array($cb, $data);
                 $time = microtime(true) - $start;
-                $this->_running_task[$type] = true;
                 $this->_task_time->add(intval($time * 1000));
                 $this->_task_count->add(1);
                 if ($time > 2) {
