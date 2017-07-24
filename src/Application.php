@@ -381,7 +381,6 @@ class Application implements IMiddleware
         }
         if ($cb = $this->_tasks[$type]) {
             try {
-                echo $type . PHP_EOL;
                 $start = microtime(true);
                 $rs = call_user_func_array($cb, $data);
                 $time = microtime(true) - $start;
