@@ -63,6 +63,7 @@ class Application implements IMiddleware
 
     private $_task_time;
     private $_task_count;
+    private $_running_task;
 
     use TMiddleware;
 
@@ -386,6 +387,7 @@ class Application implements IMiddleware
                 $time = microtime(true) - $start;
                 $this->_task_time->add(intval($time * 1000));
                 $this->_task_count->add(1);
+                $this->_running_task[$type] = true;
                 if ($time > 2) {
                     $out = "$type 执行时间过长 $time ";
                     foreach ($data as $index => $val) {
@@ -395,8 +397,10 @@ class Application implements IMiddleware
                     }
                     echo $out . "\n";
                 }
+                unset($this->_running_task[$type]);
             } catch (\Exception $e) {
                 (new Php(null))->cli($e);
+                unset($this->_running_task[$type]);
                 return false;
             }
             return $rs;
@@ -459,6 +463,9 @@ class Application implements IMiddleware
                             $this->_task_time->get() / 1000,
                             $this->_task_time->get() / 1000 / ($this->_task_count->get() ?: 1)
                         ) . PHP_EOL;
+                    if (Sanitize::bool($this->setting('debug'))) {
+                        var_dump(array_keys($this->_running_task));
+                    }
                 }
             });
         }
