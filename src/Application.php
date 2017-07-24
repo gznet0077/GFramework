@@ -63,7 +63,6 @@ class Application implements IMiddleware
 
     private $_task_time;
     private $_task_count;
-    private $_running_task = [];
 
     use TMiddleware;
 
@@ -382,7 +381,7 @@ class Application implements IMiddleware
         }
         if ($cb = $this->_tasks[$type]) {
             try {
-                $this->_running_task[$type] = true;
+                echo $type . PHP_EOL;
                 $start = microtime(true);
                 $rs = call_user_func_array($cb, $data);
                 $time = microtime(true) - $start;
@@ -397,10 +396,8 @@ class Application implements IMiddleware
                     }
                     echo $out . "\n";
                 }
-                unset($this->_running_task[$type]);
             } catch (\Exception $e) {
                 (new Php(null))->cli($e);
-                unset($this->_running_task[$type]);
                 return false;
             }
             return $rs;
@@ -463,9 +460,6 @@ class Application implements IMiddleware
                             $this->_task_time->get() / 1000,
                             $this->_task_time->get() / 1000 / ($this->_task_count->get() ?: 1)
                         ) . PHP_EOL;
-                    if (Sanitize::bool($this->setting('debug'))) {
-                        var_dump(array_keys($this->_running_task));
-                    }
                 }
             });
         }
