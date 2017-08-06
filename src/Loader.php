@@ -18,10 +18,11 @@ class Loader
     private $_publicReg = '~@public\s+(true|false)~';
     private $_taskReg = '~@task\s+(true|false)~';
     private $_cronReg = '~@cron\s(.+)~';
-    private $_timeoutReg = '~@timeout\s(.+)~';
+    private $_timeoutReg = '~@timeout\s+(.+)~';
     private $_triggerOnStartReg = '~@triggerOnStart\s+(true|false)~';
-    private $_indexReg = '~@index\s(.+)~';
+    private $_indexReg = '~@index\s+(.+)~';
     private $_websocketReg = '~@websocket\s+(true|false)~';
+    private $_tagReg = '~@tag\s+(.+)~';
 
     private $_resourceDir;
 
@@ -29,15 +30,25 @@ class Loader
     private $_tasks = [];
     private $_crontab = [];
     private $_actions = [];
+    private $_tags = [];
 
     private $_mod = Application::MOD_WEB;
 
-    public function __construct($dir, $namespace = null, $middlewareNamespace = null, $prefix = null)
+    public function __construct($dir, $namespace = null, $middlewareNamespace = null, $prefix = null, $tags = [])
     {
         $this->_namespace = $namespace;
         $this->_middlewareNamespace = $middlewareNamespace;
 
         $this->_restPrefix = $prefix;
+        if (is_string($tags)) {
+            $this->_tags = array_map(function($item) {
+                return trim($item);
+            }, explode(',', $tags));
+        } else if (is_array($tags)) {
+            $this->_tags = $tags;
+        } else {
+            $this->_tags = [];
+        }
 
         if (!file_exists($dir)) {
             throw new \RuntimeException('Resource 目录不存在');
@@ -153,6 +164,10 @@ class Loader
         });
 
         foreach ($routesInfo as $routeInfo) {
+            // 根据设置的标签加载
+            if (!empty($routeInfo['tag']) && empty(array_intersect($routeInfo['tag'], $this->_tags))) {
+                continue;
+            }
             if ($routeInfo['task']) {
                 $this->_tasks["{$ref->getShortName()}:{$routeInfo['method']}"] = "{$ref->getName()}::{$routeInfo['method']}";
             } else if ($routeInfo['cron'] && ($this->_mod & Application::MOD_CRON)) {
@@ -194,6 +209,7 @@ class Loader
             'timeout' => null,
             'triggerOnStart' => false,
             'websocket' => false,
+            'tag' => [],
         ];
 
         $doc = $method->getDocComment();
@@ -274,6 +290,13 @@ class Loader
                 $info['websocket'] = true;
             }
         }
+
+        if (preg_match($this->_tagReg, $doc, $m)) {
+            $info['tag'] = array_map(function($item) {
+                return trim($item);
+            }, explode(',', $m[1]));
+        }
+
 
         return $info;
     }
