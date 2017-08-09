@@ -335,11 +335,7 @@ class Loader
             array_push($routeParts, $methodName);
             $parameters = $method->getParameters();
             foreach ($parameters as $parameter) {
-                if ($parameter->isOptional()) {
-                    array_push($routeParts, '[{' . $parameter->getName() . '}]');
-                } else {
-                    array_push($routeParts, '{' . $parameter->getName() . '}');
-                }
+                array_push($routeParts, '{' . $parameter->getName() . '}');
             }
         }
 
@@ -353,7 +349,7 @@ class Loader
         }
 
         $route = '/' . implode('/', $routeParts);
-        $routeInfo['route'] = str_replace('/[', '[/', $route);
+        $routeInfo['route'] = $route;
 
         return $routeInfo;
     }
