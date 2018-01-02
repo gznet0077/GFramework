@@ -23,6 +23,7 @@ class Application implements IMiddleware
 {
     const MOD_WEB = 1 << 0;
     const MOD_CRON = 1 << 1;
+    const MOD_WEBSOCKET = 1 << 2;
 
     /**
      * @var Server
@@ -292,7 +293,7 @@ class Application implements IMiddleware
             . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11',
             true));
 
-        $headers = array(
+        $headers = [
             'Upgrade' => 'websocket',
             'Connection' => 'Upgrade',
             'Sec-WebSocket-Accept' => $key,
@@ -300,7 +301,7 @@ class Application implements IMiddleware
             'KeepAlive' => 'off',
             'server' => 'DK server/1.0.21',
             'X-Powered-By' => 'DK Engine'
-        );
+        ];
         foreach ($headers as $key => $val) {
             $response->header($key, $val);
         }

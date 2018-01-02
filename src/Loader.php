@@ -74,6 +74,9 @@ class Loader
             foreach ($this->_resources as $mount => $resource) {
                 $app->use($this->_restPrefix . $mount, $resource);
             }
+        }
+
+        if ($this->_mod & Application::MOD_WEBSOCKET) {
             // websocket
             foreach ($this->_actions as $action => $handler) {
                 $app->action($action, $handler);

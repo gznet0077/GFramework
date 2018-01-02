@@ -7,67 +7,123 @@ namespace G;
 class Session
 {
     /**
-     * @var Locker
-     */
-    protected $_lock;
-
-    /**
      * @var array
      */
     protected $_sessions = [];
+    protected $_rooms = [];
 
     public function __construct()
     {
-        // 不需要加锁, dispatch 设置为 2 , 对每一个 websocket 都是固定的进程
-//        $this->_lock = new Locker();
+
     }
 
     public function set($key, $value)
     {
-//        $name = $this->getName($key);
-//        $this->_lock->lock($name);
-        $this->_sessions[$key] = $value;
-        $this->_sessions['ts'] = time();
-//        $this->_lock->unlock($name);
+        if (!isset($this->_sessions[$key])) {
+            $this->_sessions[$key] = [];
+        }
+        $this->_sessions[$key]['value'] = $value;
+        $this->_sessions[$key]['ts'] = time();
     }
 
     public function get($key)
     {
-//        $name = $this->getName($key);
-//        $this->_lock->lock($name);
-        $value = $this->_sessions[$key];
-        $this->_sessions[$key] = time();
-//        $this->_lock->unlock($name);
+        if (!isset($this->_sessions[$key])) {
+            return null;
+        }
+        $value = $this->_sessions[$key]['value'];
+        $this->_sessions[$key]['ts'] = time();
         return $value;
+    }
+
+    /**
+     * 获取加入的所有房间名
+     *
+     * @param $key
+     * @return array
+     */
+    public function getRooms($key)
+    {
+        if (!isset($this->_sessions[$key])) {
+            return [];
+        }
+
+        $this->_sessions[$key]['ts'] = time();
+        return $this->_sessions[$key]['rooms'] ?? [];
+    }
+
+    /**
+     * 加入房间
+     *
+     * @param $key
+     * @param $room
+     *
+     */
+    public function join($room, $key)
+    {
+        if (!isset($this->_rooms[$room])) {
+            $this->_rooms[$room] = [];
+        }
+        if (!isset($this->_rooms[$room][$key])) {
+            $this->_rooms[$room][$key] = true;
+            $this->_sessions[$key]['rooms'][$room] = true;
+        }
+    }
+
+    /**
+     * 退出房间
+     *
+     * @param $key
+     * @param $room
+     *
+     * 是否退出房间, 如果没有加入任何房间返回false
+     * @return bool
+     */
+    public function leave($room, $key)
+    {
+        if (!isset($this->_rooms[$room][$key])) {
+            return false;
+        }
+        unset(
+            $this->_rooms[$room][$key],
+            $this->_sessions[$key]['rooms'][$room]
+        );
+        return true;
+    }
+
+    /**
+     * 获取房间成员
+     *
+     * @param $room
+     * @return \Generator
+     */
+    public function members($room)
+    {
+        foreach ($this->_rooms[$room] as $item) {
+            yield $this->get($item);
+        }
     }
 
     public function delete($key)
     {
-//        $name = $this->getName($key);
-//        $this->_lock->lock($name);
+        $rooms = $this->getRooms($key);
+        foreach ($rooms as $room) {
+            $this->leave($room, $key);
+        }
         unset($this->_sessions[$key]);
-//        $this->_lock->unlock($name);
-//        $this->_lock->clear($name);
     }
 
     public function exist($key)
     {
-//        $name = $this->getName($key);
-//        $this->_lock->lock($name);
         $exits = isset($this->_sessions[$key]);
-//        $this->_lock->unlock($name);
         return $exits;
-    }
-
-    protected function getName($key)
-    {
-        return 'sessions:'.$key;;
     }
 
     public function clear($second, $callback)
     {
+        $ts = time();
         foreach ($this->_sessions as $key => $session) {
-            if ($session['ts'] + $second > time()) {
+            if ($session['ts'] + $second < $ts) {
                 $this->delete($key);
                 if (is_callable($callback)) {
                     call_user_func($callback, $key, $session);
