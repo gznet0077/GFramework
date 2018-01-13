@@ -320,6 +320,18 @@ class Application implements IMiddleware
         return true;
     }
 
+    public function _onOpen($server, $request)
+    {
+        $fd = $request->fd;
+
+        $this->sessions->set($fd, [
+            'fd' => $request->fd,
+            'uid' => '',
+            'request' => $request,
+            'buff' => new Buffer(512),
+        ]);
+    }
+
 
     /**
      * websocket
@@ -350,7 +362,7 @@ class Application implements IMiddleware
 
             $action = $cxt->getAction();
             if ($action == 'ping') {
-                return $this->server->push($fd, 'pong');
+                return $server->push($fd, 'pong');
             }
 
             if ($action && $this->_action[$action]) {
@@ -506,7 +518,8 @@ class Application implements IMiddleware
 
         if ($this->mod & self::MOD_WEBSOCKET) {
             $this->server = new WebsocketServer($host, $port);
-            $this->server->on('handshake', [$this, '_onHandShake']);
+//            $this->server->on('handshake', [$this, '_onHandShake']);
+            $this->server->on('open', [$this, '_onOpen']);
             $this->server->on('close', [$this, '_onClose']);
             $this->server->on('message', [$this, '_onMessage']);
 
