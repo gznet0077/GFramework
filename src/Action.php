@@ -33,6 +33,10 @@ class Action implements IMiddleware
         $buff = $session['buff']->substr(0, -1, true);
         $session['buff']->clear();
 
+        if ($buff == 'ping') {
+            return $this->action = 'ping';
+        }
+
         try {
             $data = json_decode($buff, true);
             $this->action = preg_replace('/:{2,}/', ':', $data['action']);

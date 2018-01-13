@@ -337,6 +337,8 @@ class Application implements IMiddleware
      *
      * @param $server
      * @param $frame
+     *
+     * @return void
      */
     public function _onMessage($server, $frame)
     {
@@ -347,6 +349,9 @@ class Application implements IMiddleware
             $cxt = new Action($server, $session);
 
             $action = $cxt->getAction();
+            if ($action == 'ping') {
+                return $this->server->push($fd, 'pong');
+            }
 
             if ($action && $this->_action[$action]) {
                 try {
@@ -499,7 +504,7 @@ class Application implements IMiddleware
         $host = $serverSettings['host'] ?? '127.0.0.1';
         $port = $serverSettings['port'] ?? '8000';
 
-        if (Sanitize::bool($this->serverConfig['websocket'])) {
+        if ($this->mod & self::MOD_WEBSOCKET) {
             $this->server = new WebsocketServer($host, $port);
             $this->server->on('handshake', [$this, '_onHandShake']);
             $this->server->on('close', [$this, '_onClose']);
