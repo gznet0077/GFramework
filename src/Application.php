@@ -649,6 +649,7 @@ class Application implements IMiddleware
         $this->server->set($serverSettings);
         $this->server->debug = Sanitize::bool($this->settings['debug']);
         $this->server->settings = $this->settings;
+        $this->server->sessions = $this->sessions;
 
         $this->server->start();
     }

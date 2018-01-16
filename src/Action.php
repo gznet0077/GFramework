@@ -116,4 +116,9 @@ class Action implements IMiddleware
         }
         return $rs;
     }
+
+    public function __get($name)
+    {
+        return $this->server->{$name};
+    }
 }
