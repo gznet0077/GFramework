@@ -175,7 +175,7 @@ class Loader
                 $this->_tasks["{$ref->getShortName()}:{$routeInfo['method']}"] = "{$ref->getName()}::{$routeInfo['method']}";
             } else if ($routeInfo['cron'] && ($this->_mod & Application::MOD_CRON)) {
                 $this->_crontab[] = [$routeInfo['cron'], "{$ref->getName()}::{$routeInfo['method']}", $routeInfo['triggerOnStart'], $routeInfo['timeout']];
-            } else if ($routeInfo['websocket'] && $this->_mod & Application::MOD_WEB) {
+            } else if ($routeInfo['websocket'] && $this->_mod & Application::MOD_WEBSOCKET) {
                 $routeInfo['middleware'][] = function ($action) use ($routeInfo, $ref) {
                     $obj = new $routeInfo['class']($action);
                     $action->api = $obj;

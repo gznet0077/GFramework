@@ -60,6 +60,8 @@ class Application implements IMiddleware
 
     private $_action = [];
 
+    private $_fd_map = [];
+
     private $mod = self::MOD_WEB;
 
     private $_task_time;
@@ -323,13 +325,25 @@ class Application implements IMiddleware
     public function _onOpen($server, $request)
     {
         $fd = $request->fd;
+        $uuid = $request->get['uuid'];
 
-        $this->sessions->set($fd, [
-            'fd' => $request->fd,
-            'uid' => '',
-            'request' => $request,
-            'buff' => new Buffer(512),
-        ]);
+        $this->_fd_map[$fd] = $uuid;
+
+        if ($this->sessions->exist($uuid)) {
+            $this->sessions->restore($uuid);
+        } else {
+            $this->sessions->set($uuid, [
+                'fd' => $fd,
+                'uuid' => $uuid,
+                'request' => $request,
+                'buff' => new Buffer(512),
+            ]);
+        }
+
+        $onWebSocketOpen = $this->setting('onWebSocketOpen');
+        if (is_callable($onWebSocketOpen)) {
+            call_user_func($onWebSocketOpen, $server, $request, $this->sessions);
+        }
     }
 
 
@@ -341,7 +355,18 @@ class Application implements IMiddleware
      */
     public function _onClose($server, $fd)
     {
-        $this->sessions->delete($fd);
+        // 只对 weboscket 执行
+        if (!isset($server->connection_info($fd)['websocket_status'])) {
+            return;
+        }
+        $uuid = $this->_fd_map[$fd];
+        unset($this->_fd_map[$fd]);
+        $this->sessions->suspend($uuid);
+
+        $onWebSocketClose = $this->setting('onWebSocketClose');
+        if (is_callable($onWebSocketClose)) {
+            call_user_func($onWebSocketClose, $server, $fd, $this->sessions);
+        }
     }
 
     /**
@@ -355,10 +380,13 @@ class Application implements IMiddleware
     public function _onMessage($server, $frame)
     {
         $fd = $frame->fd;
-        $session = $this->sessions->get($fd);
+        $uuid = $this->_fd_map[$fd];
+        $session = $this->sessions->get($uuid);
         $session['buff']->append($frame->data);
         if ($frame->finish) {
-            $cxt = new Action($server, $session);
+            $this->sessions->active($fd, $session);
+
+            $cxt = new Action($server, $this->sessions, $uuid);
 
             $action = $cxt->getAction();
             if ($action == 'ping') {
@@ -379,7 +407,6 @@ class Application implements IMiddleware
 
             $session['buff']->clear();
         }
-        $this->sessions->set($fd, $session);
     }
 
     public function _onTask($server, $task_id, $from_id, $data)
@@ -451,10 +478,12 @@ class Application implements IMiddleware
         }
 
         // 在第一个进程定时清空过期的 session
-        if ($this->serverConfig['websocket'] && !$server->taskworker && $worker_id == 0) {
+        if (($this->mod | self::MOD_WEBSOCKET) && !$server->taskworker && $worker_id == 0) {
             $server->tick(5 * 1000, function () use ($server) {
                 $this->sessions->clear(5 * 60, function ($fd) use ($server) {
-                    $server->close($fd);
+                    if ($server->connection_info($fd)) {
+                        $server->close($fd);
+                    }
                 });
             });
         }

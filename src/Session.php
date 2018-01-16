@@ -17,23 +17,34 @@ class Session
 
     }
 
-    public function set($key, $value)
+    public function set($key, $value, $replace = false)
     {
         if (!isset($this->_sessions[$key])) {
             $this->_sessions[$key] = [];
         }
-        $this->_sessions[$key]['value'] = $value;
+        if ($replace || !is_array($value) || empty($this->_sessions[$key])) {
+            $this->_sessions[$key]['value'] = $value;
+        } else if (is_array($value)) {
+            foreach ($value as $k => $v) {
+                $this->_sessions[$key]['value'][$k] = $v;
+            }
+        }
         $this->_sessions[$key]['ts'] = time();
     }
 
     public function get($key)
     {
-        if (!isset($this->_sessions[$key])) {
+        if (!isset($this->_sessions[$key]) || $this->_sessions[$key]['suspend']) {
             return null;
         }
         $value = $this->_sessions[$key]['value'];
         $this->_sessions[$key]['ts'] = time();
         return $value;
+    }
+
+    public function active($key)
+    {
+        $this->_sessions[$key]['ts'] = time();
     }
 
     /**
@@ -44,7 +55,7 @@ class Session
      */
     public function getRooms($key)
     {
-        if (!isset($this->_sessions[$key])) {
+        if (!isset($this->_sessions[$key]) || $this->_sessions[$key]['suspend']) {
             return [];
         }
 
@@ -99,9 +110,22 @@ class Session
      */
     public function members($room)
     {
-        foreach ($this->_rooms[$room] as $item) {
-            yield $this->get($item);
+        foreach (array_keys($this->_rooms[$room]) as $key) {
+            $member = $this->get($key);
+            if ($member) {
+                yield $member;
+            }
         }
+    }
+
+    public function suspend($key)
+    {
+        $this->_sessions[$key]['suspend'] = true;
+    }
+
+    public function restore($key)
+    {
+        $this->_sessions[$key]['suspend'] = false;
     }
 
     public function delete($key)

@@ -17,17 +17,26 @@ class Action implements IMiddleware
 
     protected $fd;
 
+    protected $uuid;
+
+    /**
+     * @var Session
+     */
+    protected $sessions;
     protected $session;
 
     protected $action;
 
     protected $callback;
 
-    public function __construct(Server $server, $session)
+    public function __construct(Server $server, $sessions, $uuid)
     {
         $this->server = $server;
+        $this->sessions = $sessions;
+        $session = $sessions->get($uuid);
         $this->session = $session;
         $this->fd = $session['fd'];
+        $this->uuid = $session['uuid'];
         $this->request = $session['request'];
         $this->_collection = new \ArrayObject();
         $buff = $session['buff']->substr(0, -1, true);
@@ -65,14 +74,25 @@ class Action implements IMiddleware
 
     public function push($action, $data)
     {
-        $action = preg_replace('/:{2}/', ':', $action);
-        if (Sanitize::bool($this->settings['debug'])) {
-            $data = json_encode(['action' => $action, 'data' => $data], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-        } else {
-            $data = json_encode(['action' => $action, 'data' => $data]);
-        }
-
+        $data = $this->pack($action, $data);
         $this->server->push($this->fd, $data);
+    }
+
+    public function broadcast($room, $action, $data)
+    {
+        $members = $this->sessions->members($room);
+        $rs = $this->pack($action, $data);
+        foreach ($members as $member) {
+            $this->server->push($member['fd'], $rs);
+        }
+    }
+
+    public function broadcastToMyRooms($action, $data)
+    {
+        $rooms = $this->sessions->getRooms($this->uuid);
+        foreach ($rooms as $room) {
+            $this->broadcast($room, $action, $data);
+        }
     }
 
     public function halt($action, $msg)
@@ -84,5 +104,16 @@ class Action implements IMiddleware
         if ($this->callback) {
             $this->push($this->callback, $data);
         }
+    }
+
+    protected function pack($action, $data)
+    {
+        $action = preg_replace('/:{2}/', ':', $action);
+        if (Sanitize::bool($this->settings['debug'])) {
+            $rs = json_encode(['action' => $action, 'data' => $data], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        } else {
+            $rs = json_encode(['action' => $action, 'data' => $data]);
+        }
+        return $rs;
     }
 }
