@@ -85,6 +85,31 @@ class Action implements IMiddleware
         return $this->data;
     }
 
+    public function getUUID()
+    {
+        return $this->uuid;
+    }
+
+    public function getFd()
+    {
+        return $this->fd;
+    }
+
+    public function getSessions()
+    {
+        return $this->sessions;
+    }
+
+    public function getSession()
+    {
+        return $this->session;
+    }
+
+    public function getRequest()
+    {
+        return $this->request;
+    }
+
     public function data($name = null, $default = null, $type = Sanitize::STRING)
     {
         $data = $this->data ?? [];

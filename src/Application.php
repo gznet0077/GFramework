@@ -358,6 +358,10 @@ class Application implements IMiddleware
 
         if ($this->sessions->exist($uuid)) {
             $this->sessions->restore($uuid);
+            $this->sessions->set($uuid, [
+                'fd' => $fd,
+                'request' => $request,
+            ]);
         } else {
             $this->sessions->set($uuid, [
                 'fd' => $fd,
