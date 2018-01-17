@@ -263,7 +263,7 @@ class Application implements IMiddleware
 
     public function actionUse(...$handlers)
     {
-        Action::use($handlers);
+        Action::use(...$handlers);
     }
 
     /**
