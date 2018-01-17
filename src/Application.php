@@ -147,13 +147,13 @@ class Application implements IMiddleware
         $this->settings['onFinish'] = $handler;
     }
 
-    public function onOpen($handler)
+    public function onWebSocketOpen($handler)
     {
         if (!is_callable($handler)) {
-            throw new \RuntimeException('onOpen handler 不可运行');
+            throw new \RuntimeException('onWebSocketOpen handler 不可运行');
         }
 
-        $this->settings['onOpen'] = $handler;
+        $this->settings['onWebSocketOpen'] = $handler;
     }
 
     public function onClose($handler)
