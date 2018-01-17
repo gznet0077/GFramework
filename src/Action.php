@@ -91,7 +91,7 @@ class Action implements IMiddleware
         return Sanitize::filter($data, $name, $type, $this->RequestData($name, $default, $type));
     }
 
-    public function push($action, $data)
+    public function push($action, $data = '')
     {
         if (!$this->fd) {
             throw new \RuntimeException('Action->fd 为空, 请使用 pushTo 发送');

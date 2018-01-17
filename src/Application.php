@@ -348,6 +348,10 @@ class Application implements IMiddleware
     public function _onOpen($server, $request)
     {
         $fd = $request->fd;
+        // 只对 weboscket 执行
+        if (!isset($server->connection_info($fd)['websocket_status'])) {
+            return;
+        }
         $uuid = $request->get['uuid'];
 
         $this->_fd_map[$fd] = $uuid;
