@@ -94,20 +94,23 @@ class Action implements IMiddleware
         $this->server->push($this->fd, $data);
     }
 
-    public function broadcast($room, $action, $data)
+    public function broadcast($room, $action, $data, $filter = null)
     {
         $members = $this->sessions->members($room);
         $rs = $this->pack($action, $data);
         foreach ($members as $member) {
+            if (is_callable($filter) && !call_user_func($filter, $member)) {
+                continue;
+            }
             $this->server->push($member['fd'], $rs);
         }
     }
 
-    public function broadcastToMyRooms($action, $data)
+    public function broadcastToMyRooms($action, $data, $filter = null)
     {
         $rooms = $this->sessions->getRooms($this->uuid);
         foreach ($rooms as $room) {
-            $this->broadcast($room, $action, $data);
+            $this->broadcast($room, $action, $data, $filter);
         }
     }
 
