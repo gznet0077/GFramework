@@ -29,6 +29,11 @@ class Action implements IMiddleware
 
     protected $callback;
 
+    /**
+     * @var IMiddleware
+     */
+    protected static $_middleware = null;
+
     public function __construct(Server $server, $sessions, $uuid)
     {
         $this->server = $server;
@@ -53,6 +58,17 @@ class Action implements IMiddleware
             $this->callback = $data['callback'];
         } catch (\Exception $e) {
 
+        }
+    }
+
+    public static function use(...$handlers)
+    {
+        if (is_null(self::$_middleware)) {
+            self::$_middleware = new Middleware($handlers);
+        } else {
+            foreach ($handlers as $handler) {
+                self::$_middleware->chain($handler);
+            }
         }
     }
 

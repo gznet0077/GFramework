@@ -147,6 +147,24 @@ class Application implements IMiddleware
         $this->settings['onFinish'] = $handler;
     }
 
+    public function onOpen($handler)
+    {
+        if (!is_callable($handler)) {
+            throw new \RuntimeException('onOpen handler 不可运行');
+        }
+
+        $this->settings['onOpen'] = $handler;
+    }
+
+    public function onClose($handler)
+    {
+        if (!is_callable($handler)) {
+            throw new \RuntimeException('onClose handler 不可运行');
+        }
+
+        $this->settings['onClose'] = $handler;
+    }
+
     public function setting($name, $value = null)
     {
         if (!is_null($value)) {
@@ -241,6 +259,11 @@ class Application implements IMiddleware
         }
         $name = preg_replace('/:{2,}/', ':', $name);
         $this->_action[$name] = $handler;
+    }
+
+    public function actionUse(...$handlers)
+    {
+        Action::use($handlers);
     }
 
     /**
