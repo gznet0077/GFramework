@@ -428,7 +428,7 @@ class Application implements IMiddleware
                 }
             }
 
-            $session['buff']->clear();
+//            $session['buff']->clear();
         }
     }
 

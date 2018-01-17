@@ -34,10 +34,13 @@ class Action implements IMiddleware
      */
     protected static $_middleware = null;
 
-    public function __construct(Server $server, $sessions, $uuid)
+    public function __construct(Server $server, $sessions, $uuid = '')
     {
         $this->server = $server;
         $this->sessions = $sessions;
+        if (!$uuid) {
+            return;
+        }
         $session = $sessions->get($uuid);
         $this->session = $session;
         $this->fd = $session['fd'];
@@ -90,8 +93,17 @@ class Action implements IMiddleware
 
     public function push($action, $data)
     {
+        if (!$this->fd) {
+            throw new \RuntimeException('Action->fd 为空, 请使用 pushTo 发送');
+        }
         $data = $this->pack($action, $data);
         $this->server->push($this->fd, $data);
+    }
+
+    public function pushTo($fd, $action, $data)
+    {
+        $data = $this->pack($action, $data);
+        $this->server->push($fd, $data);
     }
 
     public function broadcast($room, $action, $data, $filter = null)
@@ -108,6 +120,9 @@ class Action implements IMiddleware
 
     public function broadcastToMyRooms($action, $data, $filter = null)
     {
+        if (!$this->uuid) {
+            throw new \RuntimeException('Action->uuid 为空, 请使用 broadcast 发送');
+        }
         $rooms = $this->sessions->getRooms($this->uuid);
         foreach ($rooms as $room) {
             $this->broadcast($room, $action, $data, $filter);
