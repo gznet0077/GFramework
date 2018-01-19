@@ -102,6 +102,11 @@ class Session
         return true;
     }
 
+    public function inRoom($room, $key)
+    {
+        return $this->_rooms[$room][$key] && $this->_sessions[$key]['rooms'][$room];
+    }
+
     /**
      * 获取房间成员
      *
