@@ -141,7 +141,7 @@ class Action implements IMiddleware
         }
     }
 
-    public function halt($action, $msg)
+    public function halt($action, $msg = null)
     {
         $this->push($action, ['msg' => $msg]);
     }

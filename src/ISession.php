@@ -94,12 +94,4 @@ interface ISession
      * @return mixed
      */
     public function exists($key);
-
-    /**
-     * 清空操作, 用来定时清除过期数据
-     * @param $second
-     * @param $callback
-     * @return mixed
-     */
-    public function clear($second, $callback);
 }

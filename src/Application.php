@@ -481,17 +481,6 @@ class Application implements IMiddleware
             }
         }
 
-        // 在第一个进程定时清空过期的 session
-        if (($this->mod | self::MOD_WEBSOCKET) && !$server->taskworker && $worker_id == 0) {
-            $server->tick(5 * 1000, function () use ($server) {
-                $this->sessions->clear(5 * 60, function ($fd) use ($server) {
-                    if ($server->connection_info($fd)) {
-                        $server->close($fd);
-                    }
-                });
-            });
-        }
-
         $uname = php_uname('s');
         if ($uname != 'Darwin') {
             $processTitle = $this->serverConfig['process_title'] ?? $this->setting('process_title');
