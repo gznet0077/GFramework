@@ -173,9 +173,4 @@ class Action implements IMiddleware
 
         return $rs;
     }
-
-    public function __get($name)
-    {
-        return TContext::__get($name) ?? $this->server->{$name};
-    }
 }
