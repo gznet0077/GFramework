@@ -8,7 +8,7 @@ use Swoole\WebSocket\Server;
 
 class Action implements IMiddleware
 {
-    use TMiddleware;
+    use TMiddleware, TContext;
 
     protected $data;
 
@@ -33,6 +33,8 @@ class Action implements IMiddleware
     public function __construct(Server $server, $frame = null, $session = null)
     {
         $this->server = $server;
+
+        $this->_collection = new \ArrayObject();
 
         if ($session) {
             $this->session = $session;
@@ -160,7 +162,7 @@ class Action implements IMiddleware
 
     public static function middleware()
     {
-        return is_null(self::$_middleware) ? self::$_middleware : new Middleware();
+        return !is_null(self::$_middleware) ? self::$_middleware : new Middleware();
     }
 
     protected function pack($action, $data)
@@ -174,6 +176,6 @@ class Action implements IMiddleware
 
     public function __get($name)
     {
-        return $this->server->{$name};
+        return TContext::__get($name) ?? $this->server->{$name};
     }
 }
