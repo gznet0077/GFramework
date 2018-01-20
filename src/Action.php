@@ -4,7 +4,6 @@
 namespace G;
 
 
-use G\Util\Sanitize;
 use Swoole\WebSocket\Server;
 
 class Action implements IMiddleware
@@ -15,6 +14,7 @@ class Action implements IMiddleware
 
     protected $fd;
 
+    protected $server;
 
     /**
      * @var ISession
@@ -90,6 +90,11 @@ class Action implements IMiddleware
     public function getFd()
     {
         return $this->fd;
+    }
+
+    public function getServer()
+    {
+        return $this->server;
     }
 
     public function setSession(ISession $session)
