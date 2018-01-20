@@ -60,7 +60,7 @@ class Session
         }
 
         $this->_sessions[$key]['ts'] = time();
-        return $this->_sessions[$key]['rooms'] ?? [];
+        return $this->_sessions[$key]['rooms'] ? array_keys($this->_sessions[$key]['rooms']) : [];
     }
 
     /**

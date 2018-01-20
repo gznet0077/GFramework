@@ -102,7 +102,7 @@ class Action implements IMiddleware
 
     public function getSession()
     {
-        return $this->session;
+        return $this->sessions->get($this->uuid);
     }
 
     public function getRequest()

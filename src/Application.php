@@ -102,6 +102,11 @@ class Application implements IMiddleware
         return $this->server;
     }
 
+    public function getSessions()
+    {
+        return $this->sessions;
+    }
+
     public function onStart($handler)
     {
         if (!is_callable($handler)) {
@@ -435,8 +440,6 @@ class Application implements IMiddleware
                     (new Php($cxt))($e);
                 }
             }
-
-//            $session['buff']->clear();
         }
     }
 
