@@ -9,20 +9,16 @@ use Swoole\WebSocket\Server;
 
 class Action implements IMiddleware
 {
-    use TMiddleware, TRequest, TContext {
-        TRequest::data as RequestData;
-    }
+    use TMiddleware;
 
     protected $data;
 
     protected $fd;
 
-    protected $uuid;
 
     /**
-     * @var Session
+     * @var ISession
      */
-    protected $sessions;
     protected $session;
 
     protected $action;
@@ -34,21 +30,22 @@ class Action implements IMiddleware
      */
     protected static $_middleware = null;
 
-    public function __construct(Server $server, $sessions, $uuid = '')
+    public function __construct(Server $server, $frame = null, $session = null)
     {
         $this->server = $server;
-        $this->sessions = $sessions;
-        if (!$uuid) {
+
+        if ($session) {
+            $this->session = $session;
+        }
+
+        if (!$frame) {
             return;
         }
-        $session = $sessions->get($uuid);
-        $this->session = $session;
-        $this->fd = $session['fd'];
-        $this->uuid = $session['uuid'];
-        $this->request = $session['request'];
-        $this->_collection = new \ArrayObject();
-        $buff = $session['buff']->substr(0, -1, true);
-        $session['buff']->clear();
+
+        $this->fd = $frame->fd;
+
+        $buff = $server->buffs[$this->fd]->substr(0, -1, true);
+        $server->buffs[$this->fd]->clear();
 
         if ($buff == 'ping') {
             return $this->action = 'ping';
@@ -95,26 +92,16 @@ class Action implements IMiddleware
         return $this->fd;
     }
 
-    public function getSessions()
+    public function setSession(ISession $session)
     {
-        return $this->sessions;
+        $this->session = $session;
     }
 
     public function getSession()
     {
-        return $this->sessions->get($this->uuid);
+        return $this->session;
     }
 
-    public function getRequest()
-    {
-        return $this->request;
-    }
-
-    public function data($name = null, $default = null, $type = Sanitize::STRING)
-    {
-        $data = $this->data ?? [];
-        return Sanitize::filter($data, $name, $type, $this->RequestData($name, $default, $type));
-    }
 
     public function push($action, $data = null)
     {
@@ -133,7 +120,7 @@ class Action implements IMiddleware
 
     public function broadcast($room, $action, $data, $filter = null)
     {
-        $members = $this->sessions->members($room);
+        $members = $this->session->members($room);
         $rs = $this->pack($action, $data);
         foreach ($members as $member) {
             if (is_callable($filter) && !call_user_func($filter, $member)) {
@@ -145,10 +132,10 @@ class Action implements IMiddleware
 
     public function broadcastToMyRooms($action, $data, $filter = null)
     {
-        if (!$this->uuid) {
-            throw new \RuntimeException('Action->uuid 为空, 请使用 broadcast 发送');
+        if (!$this->fd) {
+            throw new \RuntimeException('Action->fd 为空, 请使用 broadcast 发送');
         }
-        $rooms = $this->sessions->getRooms($this->uuid);
+        $rooms = $this->session->rooms($this->fd);
         foreach ($rooms as $room) {
             $this->broadcast($room, $action, $data, $filter);
         }
@@ -159,7 +146,8 @@ class Action implements IMiddleware
         $this->push($action, ['msg' => $msg]);
     }
 
-    public function response($data) {
+    public function response($data)
+    {
         if ($this->callback) {
             $this->push($this->callback, $data);
         }
@@ -168,11 +156,9 @@ class Action implements IMiddleware
     protected function pack($action, $data)
     {
         $action = preg_replace('/:{2}/', ':', $action);
-        if (Sanitize::bool($this->settings['debug'])) {
-            $rs = json_encode(['action' => $action, 'data' => $data], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-        } else {
-            $rs = json_encode(['action' => $action, 'data' => $data]);
-        }
+
+        $rs = json_encode(['action' => $action, 'data' => $data], JSON_UNESCAPED_UNICODE);
+
         return $rs;
     }
 

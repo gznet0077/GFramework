@@ -26,7 +26,7 @@ class Application implements IMiddleware
     const MOD_WEBSOCKET = 1 << 2;
 
     /**
-     * @var Server
+     * @var HttpServer | WebsocketServer
      */
     protected $server;
 
@@ -39,11 +39,6 @@ class Application implements IMiddleware
      * @var \ArrayObject
      */
     protected $serverConfig;
-
-    /**
-     * @var Session
-     */
-    protected $sessions;
 
     /**
      * @var Router
@@ -60,8 +55,6 @@ class Application implements IMiddleware
 
     private $_action = [];
 
-    private $_fd_map = [];
-
     private $mod = self::MOD_WEB;
 
     private $_task_time;
@@ -73,8 +66,6 @@ class Application implements IMiddleware
     {
         $this->settings = new \ArrayObject($config);
         $this->serverConfig = new \ArrayObject($serverConfig);
-
-        $this->sessions = new Session();
 
         $this->mod = $mod;
         if ($this->mod & self::MOD_WEB) {
@@ -95,16 +86,11 @@ class Application implements IMiddleware
     }
 
     /**
-     * @return Server
+     * @return HttpServer | WebsocketServer
      */
     public function getServer()
     {
         return $this->server;
-    }
-
-    public function getSessions()
-    {
-        return $this->sessions;
     }
 
     public function onStart($handler)
@@ -357,28 +343,12 @@ class Application implements IMiddleware
         if (!isset($server->connection_info($fd)['websocket_status'])) {
             return;
         }
-        $uuid = $request->get['uuid'];
 
-        $this->_fd_map[$fd] = $uuid;
-
-        if ($this->sessions->exist($uuid)) {
-            $this->sessions->restore($uuid);
-            $this->sessions->set($uuid, [
-                'fd' => $fd,
-                'request' => $request,
-            ]);
-        } else {
-            $this->sessions->set($uuid, [
-                'fd' => $fd,
-                'uuid' => $uuid,
-                'request' => $request,
-                'buff' => new Buffer(512),
-            ]);
-        }
+        $server->buffs[$fd] = new buffer(512);
 
         $onWebSocketOpen = $this->setting('onWebSocketOpen');
         if (is_callable($onWebSocketOpen)) {
-            call_user_func($onWebSocketOpen, $server, $request, $this->sessions);
+            call_user_func($onWebSocketOpen, $server, $request);
         }
     }
 
@@ -395,13 +365,11 @@ class Application implements IMiddleware
         if (!isset($server->connection_info($fd)['websocket_status'])) {
             return;
         }
-        $uuid = $this->_fd_map[$fd];
-        unset($this->_fd_map[$fd]);
-        $this->sessions->suspend($uuid);
+        unset($server->buffs[$fd]);
 
         $onWebSocketClose = $this->setting('onWebSocketClose');
         if (is_callable($onWebSocketClose)) {
-            call_user_func($onWebSocketClose, $server, $fd, $this->sessions);
+            call_user_func($onWebSocketClose, $server, $fd);
         }
     }
 
@@ -416,13 +384,11 @@ class Application implements IMiddleware
     public function _onMessage($server, $frame)
     {
         $fd = $frame->fd;
-        $uuid = $this->_fd_map[$fd];
-        $session = $this->sessions->get($uuid);
-        $session['buff']->append($frame->data);
-        if ($frame->finish) {
-            $this->sessions->active($fd, $session);
 
-            $cxt = new Action($server, $this->sessions, $uuid);
+        $server->buffs[$fd]->append($frame->data);
+        if ($frame->finish) {
+
+            $cxt = new Action($server, $frame);
 
             $action = $cxt->getAction();
             if ($action == 'ping') {
@@ -440,6 +406,7 @@ class Application implements IMiddleware
                     (new Php($cxt))($e);
                 }
             }
+            $server->buffs[$fd]->clear();
         }
     }
 
@@ -500,7 +467,8 @@ class Application implements IMiddleware
             call_user_func($onWorkerStart, $server, $worker_id);
         }
 
-        $server->sessions = $this->sessions;
+        // websocket data buff
+        $server->buffs = [];
 
         // 如果是 cron 模式, 将 crontab 的任务平均分配到每个 worker 执行,
         // 长时间的执行的任务 worker 可以投递到 task_worker 执行
