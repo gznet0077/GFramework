@@ -70,4 +70,5 @@ interface ISession
      */
     public function restore();
 
+    public function delete();
 }
