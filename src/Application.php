@@ -500,6 +500,8 @@ class Application implements IMiddleware
             call_user_func($onWorkerStart, $server, $worker_id);
         }
 
+        $server->sessions = $this->sessions;
+
         // 如果是 cron 模式, 将 crontab 的任务平均分配到每个 worker 执行,
         // 长时间的执行的任务 worker 可以投递到 task_worker 执行
         if (!$server->taskworker && $this->mod & self::MOD_CRON) {
@@ -683,7 +685,6 @@ class Application implements IMiddleware
         $this->server->set($serverSettings);
         $this->server->debug = Sanitize::bool($this->settings['debug']);
         $this->server->settings = $this->settings;
-        $this->server->sessions = $this->sessions;
 
         $this->server->start();
     }
