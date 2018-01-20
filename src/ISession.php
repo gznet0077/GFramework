@@ -24,41 +24,36 @@ interface ISession
 
     /**
      * 激活, 过期会清除
-     * @param $key
      * @return mixed
      */
-    public function active($key);
+    public function active();
 
     /**
      * 加入房间
      * @param $room
-     * @param $key
      * @return mixed
      */
-    public function join($room, $key);
+    public function join($room);
 
     /**
      * 离开房间
      * @param $room
-     * @param $key
      * @return mixed
      */
-    public function leave($room, $key);
+    public function leave($room);
 
     /**
      * 是否在房间内
      * @param $room
-     * @param $key
      * @return mixed
      */
-    public function inRoom($room, $key);
+    public function inRoom($room);
 
     /**
      * 获取所在的全部房间
-     * @param $key
      * @return mixed
      */
-    public function rooms($key);
+    public function rooms();
 
     /**
      * 获取房间里的所有成员
@@ -69,29 +64,25 @@ interface ISession
 
     /**
      * 暂停发言
-     * @param $key
      * @return mixed
      */
-    public function suspend($key);
+    public function suspend();
 
     /**
      * 恢复发言
-     * @param $key
      * @return mixed
      */
-    public function restore($key);
+    public function restore();
 
     /**
      * 删除
-     * @param $key
      * @return mixed
      */
-    public function delete($key);
+    public function delete();
 
     /**
      * 是否存在
-     * @param $key
      * @return mixed
      */
-    public function exists($key);
+    public function exists();
 }
