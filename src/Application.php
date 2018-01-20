@@ -397,11 +397,7 @@ class Application implements IMiddleware
 
             if ($action && $this->_action[$action]) {
                 try {
-                    if ($this->_action[$action] instanceof IMiddleware) {
-                        $this->_action[$action]->process($cxt);
-                    } else if (is_callable($this->_action[$action])) {
-                        call_user_func($this->_action[$action], $cxt);
-                    }
+                    (new Middleware([Action::middleware(), $this->_action[$action]]))->process($cxt);
                 } catch (\Exception $e) {
                     (new Php($cxt))($e);
                 }

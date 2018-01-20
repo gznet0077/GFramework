@@ -158,6 +158,11 @@ class Action implements IMiddleware
         }
     }
 
+    public static function middleware()
+    {
+        return is_null(self::$_middleware) ? self::$_middleware : new Middleware();
+    }
+
     protected function pack($action, $data)
     {
         $action = preg_replace('/:{2}/', ':', $action);
