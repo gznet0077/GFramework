@@ -6,14 +6,15 @@ namespace G;
 
 interface ISession
 {
+    public function set($key, $value);
+
     /**
      * 设置
-     * @param $key
-     * @param $value
+     * @param $values
      * @param bool $replace
      * @return mixed
      */
-    public function set($key, $value, $replace = false);
+    public function mSet($values, $replace = false);
 
     /**
      * 获取
