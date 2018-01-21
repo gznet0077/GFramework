@@ -116,7 +116,9 @@ class Action implements IMiddleware
             throw new \RuntimeException('Action->fd 为空, 请使用 pushTo 发送');
         }
         $data = $this->pack($action, $data);
-        $this->server->push($this->fd, $data);
+        if ($this->server->connection_info($this->fd)['websocket_status'] == WEBSOCKET_STATUS_ACTIVE) {
+            $this->server->push($this->fd, $data);
+        }
     }
 
     public function pushTo($fd, $action, $data)
