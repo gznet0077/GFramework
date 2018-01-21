@@ -145,7 +145,7 @@ class Action implements IMiddleware
         if (!$this->fd) {
             throw new \RuntimeException('Action->fd 为空, 请使用 broadcast 发送');
         }
-        $rooms = $this->session->rooms($this->fd);
+        $rooms = $this->session->rooms();
         foreach ($rooms as $room) {
             $this->broadcast($room, $action, $data, $filter);
         }
