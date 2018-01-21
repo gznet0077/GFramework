@@ -115,16 +115,15 @@ class Action implements IMiddleware
         if (!$this->fd) {
             throw new \RuntimeException('Action->fd 为空, 请使用 pushTo 发送');
         }
-        $data = $this->pack($action, $data);
-        if ($this->server->connection_info($this->fd)['websocket_status'] == WEBSOCKET_STATUS_ACTIVE) {
-            $this->server->push($this->fd, $data);
-        }
+        $this->pushTo($this->fd, $action, $data);
     }
 
     public function pushTo($fd, $action, $data)
     {
         $data = $this->pack($action, $data);
-        $this->server->push($fd, $data);
+        if ($this->server->connection_info($fd)['websocket_status']) {
+            $this->server->push($fd, $data);
+        }
     }
 
     public function broadcast($room, $action, $data, $filter = null)
@@ -135,7 +134,7 @@ class Action implements IMiddleware
             if (is_callable($filter) && !call_user_func($filter, $member)) {
                 continue;
             }
-            if ($this->server->connection_info($this->fd)['websocket_status'] == WEBSOCKET_STATUS_ACTIVE) {
+            if ($this->server->connection_info($this->fd)['websocket_status']) {
                 $this->server->push($member['fd'], $rs);
             }
         }
