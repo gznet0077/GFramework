@@ -135,7 +135,9 @@ class Action implements IMiddleware
             if (is_callable($filter) && !call_user_func($filter, $member)) {
                 continue;
             }
-            $this->server->push($member['fd'], $rs);
+            if ($this->server->connection_info($this->fd)['websocket_status'] == WEBSOCKET_STATUS_ACTIVE) {
+                $this->server->push($member['fd'], $rs);
+            }
         }
     }
 
