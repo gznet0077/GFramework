@@ -73,4 +73,10 @@ interface ISession
     public function delete();
 
     public function exists();
+
+    /**
+     * @param $id
+     * @return ISession
+     */
+    public function newSession($id);
 }
