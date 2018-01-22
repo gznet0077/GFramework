@@ -56,7 +56,7 @@ class Sanitize
             case Sanitize::MONGOID:
                 return Misc::realID($d);
             case self::HTML:
-                return Misc::decodeHtml($d);
+                return Misc::encodeHtml($d);
             default:
                 return $d;
         }
