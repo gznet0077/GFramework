@@ -13,6 +13,7 @@ class Sanitize
     const XSS = 5;
     const ARRAY = 6;
     const MONGOID = 7;
+    const HTML = 8;
 
     static public function filter($data, $key = null, $type = self::STRING, $default = null)
     {
@@ -54,6 +55,8 @@ class Sanitize
                 return (array)$d;
             case Sanitize::MONGOID:
                 return Misc::realID($d);
+            case self::HTML:
+                return Misc::decodeHtml($d);
             default:
                 return $d;
         }
@@ -69,4 +72,8 @@ class Sanitize
         return self::sanitize($d, self::XSS);
     }
 
+    static public function html($d)
+    {
+        return self::sanitize($d, self::HTML);
+    }
 }
