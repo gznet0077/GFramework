@@ -10,7 +10,7 @@ class Locker
 {
     private $_lockers = [];
 
-    public function __construct($names)
+    public function __construct($names = [])
     {
         foreach ($names as $name) {
             $this->_lockers[$name] = new Lock(SWOOLE_MUTEX);
