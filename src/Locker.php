@@ -17,6 +17,10 @@ class Locker
         }
     }
 
+    public function trylock($name = 'default') {
+        return $this->_lockers[$name]->trylock();
+    }
+
     public function lock($name = 'default')
     {
         if (!$this->_lockers[$name]) {
