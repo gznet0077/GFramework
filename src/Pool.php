@@ -37,26 +37,26 @@ class Pool
      */
     protected $_gen;
 
-    public function __construct($min, $max, $idle, $maxWait)
+    public function __construct($config)
     {
-        $this->_min = $min;
-        $this->_max = $max;
-        $this->_idle = $idle;
-        $this->_maxWait = $maxWait;
+        $this->_min = $config['min'];
+        $this->_max = $config['max'];
+        $this->_idle = $config['idle'];
+        $this->_maxWait = $config['maxWait'];
+        if (is_callable($config['create'])) {
+            throw \Exception('create 必须是 callable ');
+        }
+        $this->_createFn = $config['create'];
+
+        if (is_callable($config['destroy'])) {
+            throw \Exception('destroy 必须是 callable ');
+        }
+        $this->_destroyFn = $config['destroy'];
+
         $this->_queue = new \SplQueue();
         $this->_count = new Atomic(0);
         $this->_waitingCount = new Atomic(0);
         $this->_gen = $this->gen();
-    }
-
-    public function createFn(\Closure $fn)
-    {
-        $this->_createFn = $fn;
-    }
-
-    public function destroyFn(\Closure $fn)
-    {
-        $this->_destroyFn = $fn;
     }
 
     protected function createClient()
