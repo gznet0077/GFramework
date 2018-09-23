@@ -39,16 +39,24 @@ class Pool
 
     public function __construct($config)
     {
-        $this->_min = $config['min'];
-        $this->_max = $config['max'];
-        $this->_idle = $config['idle'];
-        $this->_maxWait = $config['maxWait'];
-        if (is_callable($config['create'])) {
+        if (isset($config['min'])) {
+            $this->_min = $config['min'];
+        }
+        if (isset($config['max'])) {
+            $this->_max = $config['max'];
+        }
+        if (isset($config['idle'])) {
+            $this->_idle = $config['idle'];
+        }
+        if (isset($config['maxWait'])) {
+            $this->_maxWait = $config['maxWait'];
+        }
+        if (!is_callable($config['create'])) {
             throw \Exception('create 必须是 callable ');
         }
         $this->_createFn = $config['create'];
 
-        if (is_callable($config['destroy'])) {
+        if (!is_callable($config['destroy'])) {
             throw \Exception('destroy 必须是 callable ');
         }
         $this->_destroyFn = $config['destroy'];
@@ -56,11 +64,22 @@ class Pool
         $this->_queue = new \SplQueue();
         $this->_count = new Atomic(0);
         $this->_waitingCount = new Atomic(0);
+        // 初始化, 添加连接
+        for ($i = 0; $i < $this->_min; $i++) {
+            $client = $this->createClient();
+            $this->_queue->enqueue($client);
+        }
+
         $this->_gen = $this->gen();
+        $this->_gen->valid(); // 执行一次, 让生成器开始工作, 要不数值不对
     }
 
     protected function createClient()
     {
+        if (!is_callable($this->_createFn)) {
+            throw new \Exception('必须定义 createFn ');
+        }
+
         $client = call_user_func($this->_createFn);
         $client->__ts = time();
         $this->_count->add(1);
@@ -70,15 +89,6 @@ class Pool
 
     protected function gen()
     {
-        if (!is_callable($this->_createFn)) {
-            throw new \Exception('必须定义 createFn ');
-        }
-        // 初始化, 添加连接
-        for ($i = 0; $i < $this->_min; $i++) {
-            $client = $this->createClient();
-            $this->_queue->enqueue($client);
-        }
-
         while (true) {
             $len = $this->_queue->count();
             $total = $this->_count->get();
@@ -101,6 +111,7 @@ class Pool
         }
         $ts = time();
         while ($this->_gen->valid()) {
+
             if ($timeout > 0 && (time() - $ts > $timeout)) {
                 throw new PoolTimeout();
             }
@@ -126,5 +137,15 @@ class Pool
         } else {
             $this->_gen->send($client);
         }
+    }
+
+    public function len()
+    {
+        return $this->_queue->count() + 1;
+    }
+
+    public function total()
+    {
+        return $this->_count->get();
     }
 }
