@@ -52,7 +52,7 @@ class RedLock
             }
             // Wait a random delay before to retry
             $delay = mt_rand(floor($this->retryDelay / 2), $this->retryDelay);
-            usleep($delay * 1000);
+            co::sleep($delay / 1000);
             $retry--;
         } while ($retry > 0);
         return false;
