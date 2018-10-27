@@ -207,7 +207,7 @@ trait TRequest
             return array_merge($params, $this->request->get, $body);
         }
 
-        return $this->data($name, null, $type) ?? $this->query($name, null, $type) ?? $this->post($name, $default, $type);
+        return $this->data($name, null, $type) ?? $this->query($name, null, $type) ?? $this->param($name, $default, $type);
     }
 
 }
