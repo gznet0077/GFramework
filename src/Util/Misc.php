@@ -54,7 +54,7 @@ class Misc
         return \filter_var(strval($str), FILTER_SANITIZE_STRING);
     }
 
-    static public function realID($id)
+    static public function realID($id = null)
     {
         return ($id instanceof ObjectID) ? $id : new ObjectID($id);
     }
