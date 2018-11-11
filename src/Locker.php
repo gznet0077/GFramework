@@ -38,4 +38,9 @@ class Locker
     {
         unset($this->_lockers[$name]);
     }
+
+    public function add($name)
+    {
+        $this->_lockers[$name] = new Lock(SWOOLE_MUTEX);
+    }
 }
