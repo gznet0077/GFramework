@@ -73,7 +73,7 @@ class Pattern
         if ($end) {
             $path = $path . '$';
         } else {
-            $path = $path . '.*$';
+            $path = $path . '/.*$';
         }
 
         return '~' . $path . '~';
