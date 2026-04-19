@@ -1,7 +1,7 @@
 {
     "name": "lucky/g-framework",
     "require": {
-        "php": "^7.1"
+        "php": "^8.0"
     },
     "autoload": {
         "psr-4": { "G\\": "src/" }
