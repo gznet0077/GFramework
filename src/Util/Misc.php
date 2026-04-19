@@ -113,7 +113,7 @@ class Misc
     {
         foreach ($src as $k => $item) {
             if (is_array($item) || $item instanceof \ArrayObject) {
-                $desc[$k] = Misc::mergeObject($desc[$k], $item);
+                $desc[$k] = isset($desc[$k]) ? Misc::mergeObject($desc[$k], $item) : $item;
             } else {
                 $desc[$k] = $item;
             }
