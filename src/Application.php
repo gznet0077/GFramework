@@ -602,14 +602,14 @@ class Application implements IMiddleware
         $this->server->on('WorkerStart', [$this, '_onWorkerStart']);
         $this->server->on('WorkerStop', [$this, '_onWorkerStop']);
 
-        if (!$serverSettings['worker_num']) {
+        if (!isset($serverSettings['worker_num']) || !$serverSettings['worker_num']) {
             $serverSettings['worker_num'] = $cpuNum;
         }
 
         $this->server->on('Request', [$this, '_onRequest']);
 
         if (count($this->_tasks)) {
-            if (!$serverSettings['task_worker_num']) {
+            if ( !isset($serverSettings['task_worker_num']) || !$serverSettings['task_worker_num']) {
                 $serverSettings['task_worker_num'] = $cpuNum * 2;
             }
             //
@@ -644,6 +644,10 @@ class Application implements IMiddleware
             $serverSettings['pid_file'] = $chroot . '/' . $serverSettings['pid_file'];
         }
 
+        $nonSwooleOptions = ['host', 'port', 'fetch_host', 'process_title', 'allow_uuid', 'vir_uuid', 'multi_pan', 'di_ad', 'message_queue_key'];
+        foreach ($nonSwooleOptions as $opt) {
+            unset($serverSettings[$opt]);
+        }
         $this->server->set($serverSettings);
         $this->server->debug = Sanitize::bool($this->settings['debug']);
         $this->server->settings = $this->settings;
