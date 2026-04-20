@@ -36,7 +36,7 @@ class Pattern
     {
         $path = $this->_fixPath($path);
         if ($path == $this->_path) {
-            return true;
+            return [];
         }
         if (preg_match($this->_regex, $path, $matches)) {
             return array_filter($matches, function ($key) {
