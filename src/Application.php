@@ -638,10 +638,16 @@ class Application implements IMiddleware
 
         if (isset($serverSettings['log_file']) && strpos($serverSettings['log_file'], './') === 0) {
             $serverSettings['log_file'] = $chroot . '/' . $serverSettings['log_file'];
+            if (!is_dir($logDir)) {
+                mkdir($logDir, 0755, true);
+            }
         }
 
         if (isset($serverSettings['pid_file']) && strpos($serverSettings['pid_file'], './') === 0) {
             $serverSettings['pid_file'] = $chroot . '/' . $serverSettings['pid_file'];
+            if (!is_dir($pidDir)) {
+                mkdir($pidDir, 0755, true);
+            }
         }
 
         $nonSwooleOptions = ['host', 'port', 'fetch_host', 'process_title', 'allow_uuid', 'vir_uuid', 'multi_pan', 'di_ad', 'message_queue_key'];
