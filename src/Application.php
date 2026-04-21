@@ -17,6 +17,7 @@ use Swoole\Http\Server as HttpServer;
 use Swoole\Websocket\Server as WebsocketServer;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
+use Swoole\Timer;
 
 
 class Application implements IMiddleware
@@ -494,7 +495,7 @@ class Application implements IMiddleware
             }
         }
         if ($worker_id == 0 && $this->mod & self::MOD_CRON) {
-            $server->tick(1000, function () use ($server) {
+            Timer::tick(1000, function () use ($server) {
                 $tasking_num = $server->stats()['tasking_num'];
                 if ($tasking_num) {
                     echo sprintf(
@@ -638,6 +639,7 @@ class Application implements IMiddleware
 
         if (isset($serverSettings['log_file']) && strpos($serverSettings['log_file'], './') === 0) {
             $serverSettings['log_file'] = $chroot . '/' . $serverSettings['log_file'];
+            $logDir = dirname($serverSettings['log_file']);
             if (!is_dir($logDir)) {
                 mkdir($logDir, 0755, true);
             }
@@ -645,6 +647,7 @@ class Application implements IMiddleware
 
         if (isset($serverSettings['pid_file']) && strpos($serverSettings['pid_file'], './') === 0) {
             $serverSettings['pid_file'] = $chroot . '/' . $serverSettings['pid_file'];
+            $pidDir = dirname($serverSettings['pid_file']);
             if (!is_dir($pidDir)) {
                 mkdir($pidDir, 0755, true);
             }
