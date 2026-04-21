@@ -5,6 +5,7 @@ namespace G;
 
 
 use Swoole\Http\Server;
+use Swoole\Timer;
 
 class Cron
 {
@@ -51,7 +52,7 @@ class Cron
             $this->trigger(true);
         }
 
-        $this->server->tick(100, function ($id) {
+        Timer::tick(100, function ($id) {
             // 同一时间只执行一次
             if ($this->running) {
                 return;
@@ -67,7 +68,7 @@ class Cron
         $this->running = true;
 //        if ($this->timeout > 0) {
 //            // 如果在回调中没有调用 Cron->task() 方法就必须调用 Cron->free() 来释放锁
-//            $this->timer = $this->server->after($this->timeout * 1000, function () {
+//            $this->timer = Timer::after($this->timeout * 1000, function () {
 //                $this->free();
 //                if ($this->server->debug) {
 //                    throw new \RuntimeException("cron {$this->cron} 调用超时,
@@ -152,7 +153,7 @@ class Cron
         }
 
         if (!is_null($this->timer)) {
-            $this->server->clearTimer($this->timer);
+            Timer::clear($this->timer);
             $this->timer = null;
         }
 
