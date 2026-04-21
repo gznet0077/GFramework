@@ -246,11 +246,11 @@ class Misc
 
     static public function pack($data)
     {
-        return \Swoole\Serialize::pack($data);
+        return serialize($data);
     }
 
     static public function unpack($data)
     {
-        return \Swoole\Serialize::unpack($data);
+        return unserialize($data);
     }
 }
