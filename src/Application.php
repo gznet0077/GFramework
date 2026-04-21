@@ -653,7 +653,7 @@ class Application implements IMiddleware
             }
         }
 
-        $nonSwooleOptions = ['host', 'port', 'fetch_host', 'process_title', 'allow_uuid', 'vir_uuid', 'multi_pan', 'di_ad', 'message_queue_key'];
+        $nonSwooleOptions = ['host', 'port', 'fetch_host', 'process_title', 'allow_uuid', 'vir_uuid', 'multi_pan', 'di_ad', 'message_queue_key', 'uuid', 'apis', 'tags'];
         foreach ($nonSwooleOptions as $opt) {
             unset($serverSettings[$opt]);
         }
